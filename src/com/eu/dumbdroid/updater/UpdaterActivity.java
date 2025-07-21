@@ -265,7 +265,7 @@ public class UpdaterActivity extends AppCompatActivity {
 
     private void showErrorDialog(String error) {
         new AlertDialog.Builder(this)
-            .setMessage(message)
+            .setMessage(error)
             .setPositiveButton(android.R.string.ok, (dialog, which) -> dialog.dismiss())
             .setCancelable(true)
             .show();
