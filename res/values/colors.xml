@@ -1,0 +1,8 @@
+<!-- res/values/colors.xml -->
+<resources>
+    <!-- toolbar title text -->
+    <color name="toolbar_title_color">#000000</color>
+    <!-- toolbar icons (navigation, overflow) -->
+    <color name="toolbar_icon_color">#000000</color>
+</resources>
+

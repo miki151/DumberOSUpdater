@@ -1,0 +1,14 @@
+android_app {
+    name: "DumbdroidUpdater",
+    // Include SettingsLib and it's dependencies
+    defaults: ["SettingsLibDefaults"],
+
+
+    platform_apis: true,
+    srcs: ["src/**/*.java"],
+    resource_dirs: ["res"],
+    manifest: "AndroidManifest.xml",
+    certificate: "platform",
+    privileged: true,
+    static_libs: ["androidx.preference_preference"],
+}

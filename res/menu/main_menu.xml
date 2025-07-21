@@ -1,0 +1,30 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_branch"
+        android:title="@string/menu_branch">
+        <menu>
+            <item
+                android:id="@+id/menu_branch_stable"
+                android:title="@string/stable"/>
+            <item
+                android:id="@+id/menu_branch_testing"
+                android:title="@string/testing"/>
+            <item
+                android:id="@+id/menu_branch_unstable"
+		android:title="@string/unstable"/>
+        </menu>
+    </item>
+    <item
+        android:id="@+id/menu_gapps"
+        android:title="@string/menu_gapps">
+        <menu>
+            <item
+                android:id="@+id/menu_gapps_yes"
+                android:title="@string/gapps_yes"/>
+            <item
+                android:id="@+id/menu_gapps_no"
+                android:title="@string/gapps_no"/>
+        </menu>
+    </item>
+</menu>
+

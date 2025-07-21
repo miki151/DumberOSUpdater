@@ -1,0 +1,98 @@
+
+    <LinearLayout
+	    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- App bar with hamburger icon -->
+        <com.google.android.material.appbar.AppBarLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="?attr/colorPrimary"
+	        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+                android:theme="@style/AppTheme.ToolbarLight"/>
+        </com.google.android.material.appbar.AppBarLayout>
+
+        <!-- Your existing content goes here -->
+        <FrameLayout
+            android:id="@+id/content_frame"
+            android:layout_width="match_parent"
+		android:layout_height="match_parent">
+		<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:gravity="center" android:orientation="vertical">
+	
+    <Button
+        android:id="@+id/btn_check_updates"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/check_updates"/>
+    <TextView
+        android:id="@+id/tv_update_available"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/update_available"
+        android:visibility="gone"
+        android:layout_marginTop="8dp"
+        android:textSize="18sp"/>
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100"
+        android:visibility="gone"
+        android:layout_marginTop="12dp" />
+
+    <!-- Percentage complete -->
+    <TextView
+        android:id="@+id/tv_percent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0%"
+        android:visibility="gone"
+        android:layout_marginTop="4dp" />
+
+    <!-- Download speed -->
+    <TextView
+        android:id="@+id/tv_speed"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0 KB/s"
+        android:visibility="gone"
+        android:layout_marginTop="4dp" />
+    <ScrollView
+    android:id="@+id/scroll_patchnotes"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:visibility="gone"
+    android:overScrollMode="always"
+    android:fadeScrollbars="false"
+    android:scrollbars="vertical"
+    android:layout_marginTop="12dp"
+    android:padding="8dp"
+    android:background="@null">
+    <TextView
+        android:id="@+id/tv_patchnotes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/patchnotes_placeholder"
+        android:visibility="visible"
+        android:layout_marginTop="12dp"
+        android:padding="8dp"
+        android:background="@null"
+        android:textSize="14sp"/>
+     </ScrollView>
+     </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+
+

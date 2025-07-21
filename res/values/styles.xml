@@ -1,0 +1,11 @@
+<resources>
+	<!-- res/values/styles.xml -->
+<style name="AppTheme.ToolbarLight" parent="ThemeOverlay.AppCompat.Light">
+    <!-- Title text color -->
+    <item name="android:textColorPrimary">@color/toolbar_title_color</item>
+    <!-- Overflow & menu icon tint -->
+    <item name="colorControlNormal">@color/toolbar_icon_color</item>
+</style>
+
+</resources>
+
