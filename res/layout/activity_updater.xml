@@ -5,7 +5,8 @@
 
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:background="@color/app_background">
 
         <!-- App bar with hamburger icon -->
         <com.google.android.material.appbar.AppBarLayout
@@ -16,8 +17,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:background="?attr/colorPrimary"
-	        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
-                android:theme="@style/AppTheme.ToolbarLight"/>
+                app:popupTheme="@style/AppTheme.PopupMenu"
+                android:theme="@style/AppTheme.Toolbar"/>
         </com.google.android.material.appbar.AppBarLayout>
 
         <!-- Your existing content goes here -->
@@ -33,7 +34,8 @@
         android:id="@+id/btn_check_updates"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/check_updates"/>
+        android:text="@string/check_updates"
+        android:textColor="@color/update_button_text"/>
     <TextView
         android:id="@+id/tv_update_available"
         android:layout_width="wrap_content"

@@ -180,7 +180,7 @@ public class UpdaterActivity extends AppCompatActivity {
             tvSpeed.setVisibility(View.GONE);
             invalidateOptionsMenu();
             btnCheck.setText(R.string.install_update);
-            Toast.makeText(this, "Download canceled", Toast.LENGTH_SHORT).show();
+         //   Toast.makeText(this, "Download canceled", Toast.LENGTH_SHORT).show();
         });
     }
 
@@ -312,21 +312,28 @@ public class UpdaterActivity extends AppCompatActivity {
     }
 
     public void showConfirmationDialog(String message, Runnable onConfirm) {
-        new AlertDialog.Builder(this)
+        AlertDialog dialog = new AlertDialog.Builder(this)
             .setMessage(message)
             .setPositiveButton(
                     android.R.string.ok,
-                    (dialog, which) -> {
-                        dialog.dismiss();
+                    (d, which) -> {
+                        d.dismiss();
                         onConfirm.run();
                     }
                     )
             .setNegativeButton(
                     android.R.string.cancel,
-                    (dialog, which) -> dialog.dismiss()
+                    (d, which) -> d.dismiss()
                     )
             .setCancelable(true)
             .show();
+
+        TextView messageText = dialog.findViewById(android.R.id.message);
+        if (messageText != null) {
+            int color = messageText.getCurrentTextColor();
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(color);
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(color);
+        }
     }
 
     private void setBranch(String name) {
