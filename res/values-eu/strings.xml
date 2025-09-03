@@ -1,18 +1,18 @@
 <resources>
     <string name="app_name">Dumbdroid Updater</string>
-    <string name="updater_tile_title">Updates</string>
-    <string name="updater_tile_summary">Check for new builds</string>
-    <string name="check_updates">Check for updates</string>
-    <string name="update_available">Update available: </string>
-    <string name="install_update">Download update</string>
-    <string name="cancel_update">Cancel update</string>
-    <string name="patchnotes_placeholder">Patchnotes will appear here.</string>
-    <string name="menu_branch">Branch</string>
-    <string name="menu_gapps">Google apps</string>
-    <string name="stable">stable</string>
-    <string name="testing">testing</string>
-    <string name="unstable">unstable</string>
-    <string name="gapps_yes">Yes</string>
-    <string name="gapps_no">No</string>
+    <string name="updater_tile_title">Eguneratzeak</string>
+    <string name="updater_tile_summary">Egiaztatu eraikuntza berriak</string>
+    <string name="check_updates">Egiaztatu eguneraketak</string>
+    <string name="update_available">Eguneratzea erabilgarri: </string>
+    <string name="install_update">Deskargatu eguneraketa</string>
+    <string name="cancel_update">Utzi eguneraketa</string>
+    <string name="patchnotes_placeholder">Bertsio-oharrak hemen agertuko dira.</string>
+    <string name="menu_branch">Adarra</string>
+    <string name="menu_gapps">Google aplikazioak</string>
+    <string name="stable">egonkorra</string>
+    <string name="testing">proba</string>
+    <string name="unstable">ezegonkorra</string>
+    <string name="gapps_yes">Bai</string>
+    <string name="gapps_no">Ez</string>
 </resources>
 

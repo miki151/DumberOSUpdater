@@ -1,18 +1,18 @@
 <resources>
     <string name="app_name">Dumbdroid Updater</string>
-    <string name="updater_tile_title">Updates</string>
-    <string name="updater_tile_summary">Check for new builds</string>
-    <string name="check_updates">Check for updates</string>
-    <string name="update_available">Update available: </string>
-    <string name="install_update">Download update</string>
-    <string name="cancel_update">Cancel update</string>
-    <string name="patchnotes_placeholder">Patchnotes will appear here.</string>
-    <string name="menu_branch">Branch</string>
-    <string name="menu_gapps">Google apps</string>
-    <string name="stable">stable</string>
-    <string name="testing">testing</string>
-    <string name="unstable">unstable</string>
-    <string name="gapps_yes">Yes</string>
-    <string name="gapps_no">No</string>
+    <string name="updater_tile_title">Yeniləmələr</string>
+    <string name="updater_tile_summary">Yeni yığımları yoxla</string>
+    <string name="check_updates">Yeniləmələri yoxla</string>
+    <string name="update_available">Yeniləmə mövcuddur: </string>
+    <string name="install_update">Yeniləməni yüklə</string>
+    <string name="cancel_update">Yeniləməni ləğv et</string>
+    <string name="patchnotes_placeholder">Burada buraxılış qeydləri görünəcək.</string>
+    <string name="menu_branch">Budaq</string>
+    <string name="menu_gapps">Google tətbiqləri</string>
+    <string name="stable">sabit</string>
+    <string name="testing">sınaq</string>
+    <string name="unstable">sabit deyil</string>
+    <string name="gapps_yes">Bəli</string>
+    <string name="gapps_no">Xeyr</string>
 </resources>
 

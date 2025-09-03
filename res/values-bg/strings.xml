@@ -1,18 +1,18 @@
 <resources>
     <string name="app_name">Dumbdroid Updater</string>
-    <string name="updater_tile_title">Updates</string>
-    <string name="updater_tile_summary">Check for new builds</string>
-    <string name="check_updates">Check for updates</string>
-    <string name="update_available">Update available: </string>
-    <string name="install_update">Download update</string>
-    <string name="cancel_update">Cancel update</string>
-    <string name="patchnotes_placeholder">Patchnotes will appear here.</string>
-    <string name="menu_branch">Branch</string>
-    <string name="menu_gapps">Google apps</string>
-    <string name="stable">stable</string>
-    <string name="testing">testing</string>
-    <string name="unstable">unstable</string>
-    <string name="gapps_yes">Yes</string>
-    <string name="gapps_no">No</string>
+    <string name="updater_tile_title">Актуализации</string>
+    <string name="updater_tile_summary">Провери за нови сборки</string>
+    <string name="check_updates">Провери за актуализации</string>
+    <string name="update_available">Налична е актуализация: </string>
+    <string name="install_update">Изтегли актуализация</string>
+    <string name="cancel_update">Откажи актуализация</string>
+    <string name="patchnotes_placeholder">Бележките към изданието ще се покажат тук.</string>
+    <string name="menu_branch">Клон</string>
+    <string name="menu_gapps">Приложения на Google</string>
+    <string name="stable">стабилна</string>
+    <string name="testing">тестова</string>
+    <string name="unstable">нестабилна</string>
+    <string name="gapps_yes">Да</string>
+    <string name="gapps_no">Не</string>
 </resources>
 

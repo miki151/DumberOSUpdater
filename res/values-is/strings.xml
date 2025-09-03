@@ -1,18 +1,18 @@
 <resources>
     <string name="app_name">Dumbdroid Updater</string>
-    <string name="updater_tile_title">Updates</string>
-    <string name="updater_tile_summary">Check for new builds</string>
-    <string name="check_updates">Check for updates</string>
-    <string name="update_available">Update available: </string>
-    <string name="install_update">Download update</string>
-    <string name="cancel_update">Cancel update</string>
-    <string name="patchnotes_placeholder">Patchnotes will appear here.</string>
-    <string name="menu_branch">Branch</string>
-    <string name="menu_gapps">Google apps</string>
-    <string name="stable">stable</string>
-    <string name="testing">testing</string>
-    <string name="unstable">unstable</string>
-    <string name="gapps_yes">Yes</string>
-    <string name="gapps_no">No</string>
+    <string name="updater_tile_title">Uppfærslur</string>
+    <string name="updater_tile_summary">Leita að nýjum smíðum</string>
+    <string name="check_updates">Leita að uppfærslum</string>
+    <string name="update_available">Uppfærsla tiltæk: </string>
+    <string name="install_update">Sækja uppfærslu</string>
+    <string name="cancel_update">Hætta við uppfærslu</string>
+    <string name="patchnotes_placeholder">Útgáfuupplýsingar birtast hér.</string>
+    <string name="menu_branch">Grein</string>
+    <string name="menu_gapps">Google forrit</string>
+    <string name="stable">stöðug</string>
+    <string name="testing">próf</string>
+    <string name="unstable">óstöðug</string>
+    <string name="gapps_yes">Já</string>
+    <string name="gapps_no">Nei</string>
 </resources>
 

@@ -1,18 +1,18 @@
 <resources>
     <string name="app_name">Dumbdroid Updater</string>
-    <string name="updater_tile_title">Updates</string>
-    <string name="updater_tile_summary">Check for new builds</string>
-    <string name="check_updates">Check for updates</string>
-    <string name="update_available">Update available: </string>
-    <string name="install_update">Download update</string>
-    <string name="cancel_update">Cancel update</string>
-    <string name="patchnotes_placeholder">Patchnotes will appear here.</string>
-    <string name="menu_branch">Branch</string>
-    <string name="menu_gapps">Google apps</string>
-    <string name="stable">stable</string>
-    <string name="testing">testing</string>
-    <string name="unstable">unstable</string>
-    <string name="gapps_yes">Yes</string>
-    <string name="gapps_no">No</string>
+    <string name="updater_tile_title">Cập nhật</string>
+    <string name="updater_tile_summary">Kiểm tra bản dựng mới</string>
+    <string name="check_updates">Kiểm tra cập nhật</string>
+    <string name="update_available">Có bản cập nhật: </string>
+    <string name="install_update">Tải bản cập nhật</string>
+    <string name="cancel_update">Hủy cập nhật</string>
+    <string name="patchnotes_placeholder">Ghi chú phát hành sẽ hiển thị tại đây.</string>
+    <string name="menu_branch">Nhánh</string>
+    <string name="menu_gapps">Ứng dụng Google</string>
+    <string name="stable">ổn định</string>
+    <string name="testing">thử nghiệm</string>
+    <string name="unstable">không ổn định</string>
+    <string name="gapps_yes">Có</string>
+    <string name="gapps_no">Không</string>
 </resources>
 

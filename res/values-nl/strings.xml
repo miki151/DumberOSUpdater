@@ -1,18 +1,18 @@
 <resources>
     <string name="app_name">Dumbdroid Updater</string>
     <string name="updater_tile_title">Updates</string>
-    <string name="updater_tile_summary">Check for new builds</string>
-    <string name="check_updates">Check for updates</string>
-    <string name="update_available">Update available: </string>
-    <string name="install_update">Download update</string>
-    <string name="cancel_update">Cancel update</string>
-    <string name="patchnotes_placeholder">Patchnotes will appear here.</string>
+    <string name="updater_tile_summary">Controleren op nieuwe builds</string>
+    <string name="check_updates">Controleren op updates</string>
+    <string name="update_available">Update beschikbaar: </string>
+    <string name="install_update">Update downloaden</string>
+    <string name="cancel_update">Update annuleren</string>
+    <string name="patchnotes_placeholder">Versie-opmerkingen verschijnen hier.</string>
     <string name="menu_branch">Branch</string>
-    <string name="menu_gapps">Google apps</string>
-    <string name="stable">stable</string>
-    <string name="testing">testing</string>
-    <string name="unstable">unstable</string>
-    <string name="gapps_yes">Yes</string>
-    <string name="gapps_no">No</string>
+    <string name="menu_gapps">Google-apps</string>
+    <string name="stable">stabiel</string>
+    <string name="testing">test</string>
+    <string name="unstable">onstabiel</string>
+    <string name="gapps_yes">Ja</string>
+    <string name="gapps_no">Nee</string>
 </resources>
 
