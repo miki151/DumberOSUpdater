@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Dumbdroid Updater</string>
+    <string name="updater_tile_title">التحديثات</string>
+    <string name="updater_tile_summary">التحقق من الإصدارات الجديدة</string>
+    <string name="check_updates">التحقق من التحديثات</string>
+    <string name="update_available">تحديث متوفر: </string>
+    <string name="install_update">تنزيل التحديث</string>
+    <string name="cancel_update">إلغاء التحديث</string>
+    <string name="patchnotes_placeholder">ستظهر ملاحظات التحديث هنا.</string>
+    <string name="menu_branch">الفرع</string>
+    <string name="menu_gapps">تطبيقات Google</string>
+    <string name="stable">مستقر</string>
+    <string name="testing">تجريبي</string>
+    <string name="unstable">غير مستقر</string>
+    <string name="gapps_yes">نعم</string>
+    <string name="gapps_no">لا</string>
+</resources>

@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Dumbdroid Updater</string>
+    <string name="updater_tile_title">アップデート</string>
+    <string name="updater_tile_summary">新しいビルドを確認</string>
+    <string name="check_updates">アップデートを確認</string>
+    <string name="update_available">利用可能なアップデート: </string>
+    <string name="install_update">アップデートをダウンロード</string>
+    <string name="cancel_update">アップデートをキャンセル</string>
+    <string name="patchnotes_placeholder">パッチノートはここに表示されます。</string>
+    <string name="menu_branch">ブランチ</string>
+    <string name="menu_gapps">Google アプリ</string>
+    <string name="stable">安定</string>
+    <string name="testing">テスト</string>
+    <string name="unstable">不安定</string>
+    <string name="gapps_yes">はい</string>
+    <string name="gapps_no">いいえ</string>
+</resources>

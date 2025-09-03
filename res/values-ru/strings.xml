@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Dumbdroid Updater</string>
+    <string name="updater_tile_title">Обновления</string>
+    <string name="updater_tile_summary">Проверить новые сборки</string>
+    <string name="check_updates">Проверить обновления</string>
+    <string name="update_available">Доступно обновление: </string>
+    <string name="install_update">Скачать обновление</string>
+    <string name="cancel_update">Отменить обновление</string>
+    <string name="patchnotes_placeholder">Заметки о выпуске появятся здесь.</string>
+    <string name="menu_branch">Ветка</string>
+    <string name="menu_gapps">Приложения Google</string>
+    <string name="stable">стабильно</string>
+    <string name="testing">тестирование</string>
+    <string name="unstable">нестабильно</string>
+    <string name="gapps_yes">Да</string>
+    <string name="gapps_no">Нет</string>
+</resources>

@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Dumbdroid Updater</string>
+    <string name="updater_tile_title">업데이트</string>
+    <string name="updater_tile_summary">새 빌드 확인</string>
+    <string name="check_updates">업데이트 확인</string>
+    <string name="update_available">사용 가능한 업데이트: </string>
+    <string name="install_update">업데이트 다운로드</string>
+    <string name="cancel_update">업데이트 취소</string>
+    <string name="patchnotes_placeholder">패치 노트가 여기 표시됩니다.</string>
+    <string name="menu_branch">브랜치</string>
+    <string name="menu_gapps">Google 앱</string>
+    <string name="stable">안정</string>
+    <string name="testing">테스트</string>
+    <string name="unstable">불안정</string>
+    <string name="gapps_yes">예</string>
+    <string name="gapps_no">아니요</string>
+</resources>

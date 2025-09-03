@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Dumbdroid Updater</string>
+    <string name="updater_tile_title">Actualizaciones</string>
+    <string name="updater_tile_summary">Buscar nuevas compilaciones</string>
+    <string name="check_updates">Buscar actualizaciones</string>
+    <string name="update_available">Actualización disponible: </string>
+    <string name="install_update">Descargar actualización</string>
+    <string name="cancel_update">Cancelar actualización</string>
+    <string name="patchnotes_placeholder">Las notas de la versión aparecerán aquí.</string>
+    <string name="menu_branch">Rama</string>
+    <string name="menu_gapps">Aplicaciones de Google</string>
+    <string name="stable">estable</string>
+    <string name="testing">prueba</string>
+    <string name="unstable">inestable</string>
+    <string name="gapps_yes">Sí</string>
+    <string name="gapps_no">No</string>
+</resources>

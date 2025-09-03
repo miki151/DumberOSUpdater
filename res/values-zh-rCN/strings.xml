@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Dumbdroid Updater</string>
+    <string name="updater_tile_title">更新</string>
+    <string name="updater_tile_summary">检查新的构建</string>
+    <string name="check_updates">检查更新</string>
+    <string name="update_available">有可用更新：</string>
+    <string name="install_update">下载更新</string>
+    <string name="cancel_update">取消更新</string>
+    <string name="patchnotes_placeholder">更新说明将在此显示。</string>
+    <string name="menu_branch">分支</string>
+    <string name="menu_gapps">Google 应用</string>
+    <string name="stable">稳定</string>
+    <string name="testing">测试</string>
+    <string name="unstable">不稳定</string>
+    <string name="gapps_yes">是</string>
+    <string name="gapps_no">否</string>
+</resources>
