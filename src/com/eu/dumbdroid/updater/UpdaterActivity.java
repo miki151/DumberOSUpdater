@@ -1,5 +1,6 @@
 package eu.dumbdroid.updater;
 
+import android.os.Build;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.SystemProperties;
@@ -11,6 +12,7 @@ import android.widget.ScrollView;
 import android.widget.Toast;
 import android.app.Activity;
 import android.util.Log;
+import android.provider.Settings;
 import java.util.zip.GZIPInputStream;
 import com.google.common.io.CountingInputStream;
 import androidx.appcompat.widget.Toolbar;
@@ -56,6 +58,7 @@ import android.content.Context;
 public class UpdaterActivity extends AppCompatActivity {
     public static final String KEY_UPDATE_VERSION = "pref_update_version";
     public static final String KEY_DOWNLOADED_BUILD = "pref_downloaded_build";
+    public static final String KEY_LAST_BOOT_COUNT = "pref_last_boot_count";
     public static final String KEY_UPDATE_PATCHNOTES = "pref_update_patchnotes";
     public static final String KEY_PREF_BRANCH = "pref_update_branch";
     public static final String KEY_PREF_GAPPS = "pref_gapps_variant";    
@@ -122,6 +125,7 @@ public class UpdaterActivity extends AppCompatActivity {
             long startTime  = System.currentTimeMillis();
     
             int bytesRead;
+	    long lastBytesReadLog = 0;
             while (isDownloading && (bytesRead = gzipIn.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);
                 totalBytes = in.getCount();
@@ -137,6 +141,11 @@ public class UpdaterActivity extends AppCompatActivity {
                     tvPercent.setText(percent + "%");
                     tvSpeed.setText(speedText);
                 });
+
+		if (totalBytes > lastBytesReadLog + 1000000) {
+                    Log.i(TAG, totalBytes + " downloaded");
+                    lastBytesReadLog = totalBytes;
+		}
             }
     
             out.flush();
@@ -227,8 +236,36 @@ public class UpdaterActivity extends AppCompatActivity {
         }
     }
 
-    static public long checkForUpdates(SharedPreferences prefs, String branch, String gapps) {
+    static int currentBootCount(Context ctx) {
+        if (Build.VERSION.SDK_INT >= 24) {
+            try { return Settings.Global.getInt(
+                    ctx.getContentResolver(), Settings.Global.BOOT_COUNT); }
+            catch (Settings.SettingNotFoundException e) {
+                Log.e(TAG, "Couldn't get boot count", e);
+            }
+        }
+        Log.i(TAG, "Couldn't get boot count due to old SDK version.");
+        return -1; // fallback for pre-24 or read failure
+    }
+
+    static public void clearDownloadedBuildOnceAfterBoot(Context context, SharedPreferences prefs) {
+	int currentBootCount = currentBootCount(context);
+        int lastBootCount = prefs.getInt(KEY_LAST_BOOT_COUNT, -1);
+        Log.i(TAG, "Current boot count = " + currentBootCount + ", last = " + lastBootCount);
+        if (lastBootCount < currentBootCount) {
+            Log.i(TAG, "Clearing downloaded build key.");
+            prefs.edit()
+                .putInt(KEY_LAST_BOOT_COUNT, currentBootCount)
+                .remove(KEY_DOWNLOADED_BUILD)
+                .apply();
+        } else
+            Log.i(TAG, "Not clearing downloaded build key.");
+    }
+
+    static public long checkForUpdates(Context context, SharedPreferences prefs, String branch,
+            String gapps) {
 	Log.i(TAG, "Checking for updates for branch " + branch + " " + gapps);
+        clearDownloadedBuildOnceAfterBoot(context, prefs);
         try {
             UpdateInfo info = downloadUpdateManifest(branch, gapps);
             // 3. Get local build timestamp
@@ -341,7 +378,7 @@ public class UpdaterActivity extends AppCompatActivity {
         Toast.makeText(this, "Branch set to: " + name, Toast.LENGTH_SHORT).show();
         updateActivityTitle(name);
         new Thread(() -> {
-            if (checkForUpdates(prefs, name, getGapps()) == 0)
+            if (checkForUpdates(this, prefs, name, getGapps()) == 0)
                 runOnUiThread(() -> Toast.makeText(this, "No new updates", Toast.LENGTH_SHORT).show());
             runOnUiThread(this::recreate);
         }).start();
@@ -351,7 +388,7 @@ public class UpdaterActivity extends AppCompatActivity {
         prefs.edit().putString(KEY_PREF_GAPPS, value).apply();
         Toast.makeText(this, "Switched to: " + value, Toast.LENGTH_SHORT).show();
         new Thread(() -> {
-            if (checkForUpdates(prefs, prefs.getString(KEY_PREF_BRANCH, "stable"), value) == 0)
+            if (checkForUpdates(this, prefs, prefs.getString(KEY_PREF_BRANCH, "stable"), value) == 0)
                 runOnUiThread(() -> Toast.makeText(this, "No new updates", Toast.LENGTH_SHORT).show());
             runOnUiThread(this::recreate);
         }).start();
@@ -476,7 +513,7 @@ public class UpdaterActivity extends AppCompatActivity {
                 Toast.makeText(this,
                     "Checking for updates.\n", Toast.LENGTH_SHORT).show();
                 new Thread(() -> {
-                    if (checkForUpdates(prefs, branch, getGapps()) == 0)
+                    if (checkForUpdates(this, prefs, branch, getGapps()) == 0)
                         runOnUiThread(() -> Toast.makeText(this, "No new updates", Toast.LENGTH_SHORT).show());
                     runOnUiThread(this::recreate);
                 }).start();

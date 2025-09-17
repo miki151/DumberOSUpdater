@@ -26,7 +26,7 @@ public class UpdateCheckWorker extends JobService {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String branch = prefs.getString(UpdaterActivity.KEY_PREF_BRANCH, "stable");
         new Thread(() -> {
-            long buildTs = UpdaterActivity.checkForUpdates(prefs, branch, UpdaterActivity.getGapps(prefs));
+            long buildTs = UpdaterActivity.checkForUpdates(this, prefs, branch, UpdaterActivity.getGapps(prefs));
 
             if (buildTs > 0) {
                 long lastNotified = prefs.getLong(KEY_PREF_NOTIFIED_BUILD, 0);

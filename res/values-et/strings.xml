@@ -8,7 +8,7 @@
     <string name="cancel_update">Tühista uuendus</string>
     <string name="patchnotes_placeholder">Väljalaskemärkmed kuvatakse siin.</string>
     <string name="menu_branch">Haru</string>
-    <string name="menu_gapps">Google'i rakendused</string>
+    <string name="menu_gapps">Google\'i rakendused</string>
     <string name="stable">stabiilne</string>
     <string name="testing">test</string>
     <string name="unstable">ebastabiilne</string>
