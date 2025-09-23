@@ -1,6 +1,7 @@
 package eu.dumbdroid.updater;
 
 import android.os.Build;
+import android.content.BroadcastReceiver;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.SystemProperties;
@@ -10,13 +11,9 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.ScrollView;
 import android.widget.Toast;
-import android.app.Activity;
 import android.util.Log;
 import android.provider.Settings;
-import java.util.zip.GZIPInputStream;
-import com.google.common.io.CountingInputStream;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.view.GravityCompat;
 
 // Spinner & adapter
 import android.widget.Spinner;
@@ -30,29 +27,22 @@ import android.app.AlertDialog;
 
 import java.io.BufferedReader;
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
-import android.widget.ProgressBar;            
-import java.io.BufferedOutputStream;          
-import java.io.FileOutputStream;              
-import java.util.Locale;                      
+import android.widget.ProgressBar;
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.lang.reflect.Method;
 import android.view.MenuItem;
 import android.view.Menu;
-import android.content.res.Configuration;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
 import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.content.ComponentName;
-import java.util.concurrent.TimeUnit;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.Context;
 
 public class UpdaterActivity extends AppCompatActivity {
@@ -71,9 +61,25 @@ public class UpdaterActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private TextView tvPercent, tvSpeed;
 
-    private volatile boolean isDownloading = false;
-    private Thread downloadThread;
-    private HttpURLConnection downloadConnection;
+    private boolean isDownloading = false;
+    private boolean receiverRegistered = false;
+
+    private final BroadcastReceiver downloadReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int state = intent.getIntExtra(UpdateDownloadService.EXTRA_STATE,
+                    UpdateDownloadService.STATE_DOWNLOADING);
+            int percent = intent.getIntExtra(UpdateDownloadService.EXTRA_PERCENT, 0);
+            boolean indeterminate = intent.getBooleanExtra(UpdateDownloadService.EXTRA_INDETERMINATE, false);
+            String speed = intent.getStringExtra(UpdateDownloadService.EXTRA_SPEED);
+            String message = intent.getStringExtra(UpdateDownloadService.EXTRA_MESSAGE);
+            String error = intent.getStringExtra(UpdateDownloadService.EXTRA_ERROR);
+            handleDownloadState(state, percent, indeterminate, speed, message, error);
+            if (isTerminalDownloadState(state)) {
+                UpdateDownloadService.clearLastProgress();
+            }
+        }
+    };
 
 
     private static String readStream(InputStream in) throws IOException {
@@ -92,105 +98,134 @@ public class UpdaterActivity extends AppCompatActivity {
         return "https://dumbdroid.eu/ota/" + branch + "/" + gapps + vndk + ".json";
     }
 
-    /**
-     * Downloads the update image and writes it to /dev/phh-ota.
-     * Must be called off the UI thread.
-     */
-    private void downloadUpdate(String branch, String gapps) {
-        UpdateInfo info = downloadUpdateManifest(branch, gapps);
-        try {
-            runOtaMakeCommand();
-            if (!isDownloading)
-                return;
-/*            runOnUiThread(() ->
-                Toast.makeText(this,
-                    "Starting download from:\n" + info.url,
-                    Toast.LENGTH_SHORT).show()
-                );*/
-            URL url = new URL(info.url);
-            downloadConnection = (HttpURLConnection) url.openConnection();
-            downloadConnection.setConnectTimeout(10000);
-            downloadConnection.setReadTimeout(10000);
-            downloadConnection.connect();
-    
-            int fileLength = downloadConnection.getContentLength();
-            CountingInputStream in = new CountingInputStream(new BufferedInputStream(downloadConnection.getInputStream()));
-        GZIPInputStream gzipIn = new GZIPInputStream(in);
-            BufferedOutputStream out = new BufferedOutputStream(
-                new FileOutputStream("/dev/phh-ota", false)
-            );
-    
-            byte[] buffer = new byte[4096];
-            long totalBytes = 0;
-            long startTime  = System.currentTimeMillis();
-    
-            int bytesRead;
-	    long lastBytesReadLog = 0;
-            while (isDownloading && (bytesRead = gzipIn.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-                totalBytes = in.getCount();
-    
-                // update progress and speed (as before)...
-                int percent = (int)(totalBytes * 100 / fileLength);
-                long elapsed = System.currentTimeMillis() - startTime;
-                double speed = totalBytes / (elapsed / 1000.0);
-                final String speedText = String.format(Locale.US, "%.1f KB/s", speed/1024);
-    
-                runOnUiThread(() -> {
-                    progressBar.setProgress(percent);
-                    tvPercent.setText(percent + "%");
-                    tvSpeed.setText(speedText);
-                });
+    private static final String PREPARING_TEXT = "Preparing for update.";
 
-		if (totalBytes > lastBytesReadLog + 1000000) {
-                    Log.i(TAG, totalBytes + " downloaded");
-                    lastBytesReadLog = totalBytes;
-		}
-            }
-    
-            out.flush();
-            in.close();
-            out.close();
-            SystemProperties.set("ctl.start", "phh-ota-switch");
+    private void setDownloading(boolean downloading) {
+        isDownloading = downloading;
+        invalidateOptionsMenu();
+    }
 
-            if (isDownloading) {
-                // Completed normally
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Download complete!", Toast.LENGTH_LONG).show();
-                    btnCheck.setText(R.string.check_updates);
-                    prefs.edit()
-                        .remove(KEY_UPDATE_VERSION)
-                        .putLong(KEY_DOWNLOADED_BUILD, info.buildTimeStamp)
-                        .apply();
-                    recreate();
-                });
-            }
+    private void showDownloadViews() {
+        progressBar.setVisibility(View.VISIBLE);
+        progressBar.setIndeterminate(true);
+        progressBar.setProgress(0);
+        tvPercent.setVisibility(View.VISIBLE);
+        tvSpeed.setVisibility(View.VISIBLE);
+    }
 
-        } catch (Exception e) {
-            // If canceled, exception is normal; only show errors when not user-canceled
-            if (isDownloading) {
-                runOnUiThread(() ->
-                    Toast.makeText(this, "Download failed: " + e.getMessage(), Toast.LENGTH_LONG).show()
-                );
-            }
-        } finally {
-            cancelDownload();
+    private void resetDownloadViews() {
+        progressBar.setVisibility(View.GONE);
+        progressBar.setIndeterminate(false);
+        progressBar.setProgress(0);
+        tvPercent.setVisibility(View.GONE);
+        tvPercent.setText("");
+        tvSpeed.setVisibility(View.GONE);
+        tvSpeed.setText("");
+    }
+
+    private void updateProgressUi(int state, int percent, boolean indeterminate, String speedText,
+            String message) {
+        showDownloadViews();
+        progressBar.setIndeterminate(indeterminate);
+        if (!indeterminate) {
+            progressBar.setProgress(percent);
+            tvPercent.setText(percent + "%");
+        } else if (message != null) {
+            tvPercent.setText(message);
+        } else {
+            tvPercent.setText("");
+        }
+        String displayText = speedText != null ? speedText : message;
+        if (displayText != null && !displayText.isEmpty()) {
+            tvSpeed.setText(displayText);
+            tvSpeed.setVisibility(View.VISIBLE);
+        } else {
+            tvSpeed.setVisibility(View.GONE);
+        }
+        btnCheck.setText(R.string.cancel_update);
+        if (!isDownloading) {
+            setDownloading(true);
         }
     }
-    
-    void cancelDownload() {
-        isDownloading = false;
-        if (downloadConnection != null)
-            downloadConnection.disconnect();
-        downloadConnection = null;
-        runOnUiThread(() -> {
-            progressBar.setVisibility(View.GONE);
-            tvPercent.setVisibility(View.GONE);
-            tvSpeed.setVisibility(View.GONE);
-            invalidateOptionsMenu();
-            btnCheck.setText(R.string.install_update);
-         //   Toast.makeText(this, "Download canceled", Toast.LENGTH_SHORT).show();
-        });
+
+    private void handleDownloadState(int state, int percent, boolean indeterminate,
+            String speedText, String message, String error) {
+        switch (state) {
+            case UpdateDownloadService.STATE_PREPARING:
+            case UpdateDownloadService.STATE_DOWNLOADING:
+                updateProgressUi(state, percent, indeterminate, speedText, message);
+                break;
+            case UpdateDownloadService.STATE_COMPLETED:
+                setDownloading(false);
+                resetDownloadViews();
+                btnCheck.setText(R.string.check_updates);
+                Toast.makeText(this, "Download complete!", Toast.LENGTH_LONG).show();
+                recreate();
+                break;
+            case UpdateDownloadService.STATE_ERROR:
+                setDownloading(false);
+                resetDownloadViews();
+                btnCheck.setText(R.string.install_update);
+                String errorMessage = error != null ? error
+                        : (message != null ? message : "Download failed");
+                if (errorMessage.startsWith("Error creating image")) {
+                    showErrorDialog(errorMessage);
+                } else {
+                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
+                }
+                break;
+            case UpdateDownloadService.STATE_CANCELED:
+                setDownloading(false);
+                resetDownloadViews();
+                btnCheck.setText(R.string.install_update);
+                Toast.makeText(this, "Download canceled", Toast.LENGTH_SHORT).show();
+                break;
+        }
+    }
+
+    private boolean isTerminalDownloadState(int state) {
+        return state == UpdateDownloadService.STATE_COMPLETED
+                || state == UpdateDownloadService.STATE_ERROR
+                || state == UpdateDownloadService.STATE_CANCELED;
+    }
+
+    private void refreshDownloadUiFromService() {
+        UpdateDownloadService.ProgressInfo info = UpdateDownloadService.getLastProgress();
+        boolean serviceRunning = UpdateDownloadService.isRunning();
+
+        if (serviceRunning) {
+            if (info != null) {
+                handleDownloadState(info.state, info.percent, info.indeterminate, info.speedText,
+                        info.message, info.error);
+            } else {
+                showDownloadViews();
+                progressBar.setIndeterminate(true);
+                progressBar.setProgress(0);
+                tvPercent.setText("0%");
+                tvSpeed.setText(PREPARING_TEXT);
+                btnCheck.setText(R.string.cancel_update);
+                if (!isDownloading) {
+                    setDownloading(true);
+                }
+            }
+            return;
+        }
+
+        if (info != null) {
+            handleDownloadState(info.state, info.percent, info.indeterminate, info.speedText,
+                    info.message, info.error);
+            if (isTerminalDownloadState(info.state)) {
+                UpdateDownloadService.clearLastProgress();
+            }
+            return;
+        }
+
+        if (isDownloading) {
+            setDownloading(false);
+        }
+        resetDownloadViews();
+        String currentVersion = prefs.getString(KEY_UPDATE_VERSION, "");
+        btnCheck.setText(currentVersion.isEmpty() ? R.string.check_updates : R.string.install_update);
     }
 
     public static final String TAG = "DumbdroidUpdater";
@@ -306,31 +341,6 @@ public class UpdaterActivity extends AppCompatActivity {
             .setPositiveButton(android.R.string.ok, (dialog, which) -> dialog.dismiss())
             .setCancelable(true)
             .show();
-    }
-
-    private void runOtaMakeCommand() {
-        SystemProperties.set("ctl.start", "phh-ota-make");
-        try {
-            Thread.sleep(1000);
-        } catch (Exception e) {}
-        while (isDownloading && !SystemProperties.get("init.svc.phh-ota-make", "").equals("stopped")) {
-            String percent = SystemProperties.get("phh.ota.progress", "");
-            if (!percent.isEmpty())
-                runOnUiThread(() -> {
-                    tvPercent.setText(percent + "%");
-                    progressBar.setProgress(Integer.parseInt(percent));
-                });
-            String state = SystemProperties.get("init.svc.phh-ota-make", "not-defined");
-            Log.d(TAG, "Current value of phh-ota-make svc is " + state);
-            try {
-                Thread.sleep(100);
-            } catch (Exception e) {}
-        }
-        String error = SystemProperties.get("phh.ota.error", "");
-        if (!error.isEmpty()) {
-            runOnUiThread(() -> showErrorDialog("Error creating image: " + error));
-            cancelDownload();
-        }
     }
 
     private void updateActivityTitle(String branch) {
@@ -489,7 +499,9 @@ public class UpdaterActivity extends AppCompatActivity {
             patchnotesScroll.setVisibility(View.GONE);
         }
         if (updateVersion.isEmpty()) {
-	    Log.i(TAG, "Update version empty " +SystemProperties.get("ro.system.build.date.utc", "0") + " " + prefs.getLong(KEY_DOWNLOADED_BUILD, 0));
+            Log.i(TAG, "Update version empty "
+                    + SystemProperties.get("ro.system.build.date.utc", "0")
+                    + " " + prefs.getLong(KEY_DOWNLOADED_BUILD, 0));
             if (Long.parseLong(SystemProperties.get("ro.system.build.date.utc", "0")) < prefs.getLong(KEY_DOWNLOADED_BUILD, 0)) {
                 tvAvailable.setVisibility(View.VISIBLE);
                 tvAvailable.setText("Update installed. Reboot the phone to apply.");
@@ -507,33 +519,54 @@ public class UpdaterActivity extends AppCompatActivity {
             // Only show patchnotes if non-empty
         }
 
-        String branch = prefs.getString(KEY_PREF_BRANCH, "stable");
+        refreshDownloadUiFromService();
+
         btnCheck.setOnClickListener(v -> {
-            if (updateVersion.isEmpty()) {
+            String currentBranch = prefs.getString(KEY_PREF_BRANCH, "stable");
+            String currentUpdateVersion = prefs.getString(KEY_UPDATE_VERSION, "");
+            if (currentUpdateVersion.isEmpty()) {
                 Toast.makeText(this,
                     "Checking for updates.\n", Toast.LENGTH_SHORT).show();
                 new Thread(() -> {
-                    if (checkForUpdates(this, prefs, branch, getGapps()) == 0)
+                    if (checkForUpdates(this, prefs, currentBranch, getGapps()) == 0)
                         runOnUiThread(() -> Toast.makeText(this, "No new updates", Toast.LENGTH_SHORT).show());
                     runOnUiThread(this::recreate);
                 }).start();
             } else if (!isDownloading) {
-                isDownloading = true;
-                invalidateOptionsMenu();
+                UpdateDownloadService.startDownload(this, currentBranch, getGapps());
+                showDownloadViews();
+                progressBar.setIndeterminate(true);
                 progressBar.setProgress(0);
-                progressBar.setVisibility(View.VISIBLE);
-                tvPercent.setVisibility(View.VISIBLE);
                 tvPercent.setText("0%");
-                tvSpeed.setVisibility(View.VISIBLE);
+                tvSpeed.setText(PREPARING_TEXT);
                 btnCheck.setText(R.string.cancel_update);
-                tvSpeed.setText("Preparing for update.");
-                // Perform download off the UI thread
-                downloadThread = new Thread(() -> downloadUpdate(branch, getGapps()));
-                downloadThread.start();
+                if (!isDownloading) {
+                    setDownloading(true);
+                }
             } else {
-                cancelDownload();
+                UpdateDownloadService.cancelDownload(this);
             }
         });
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (!receiverRegistered) {
+            IntentFilter filter = new IntentFilter(UpdateDownloadService.ACTION_PROGRESS);
+            registerReceiver(downloadReceiver, filter);
+            receiverRegistered = true;
+        }
+        refreshDownloadUiFromService();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (receiverRegistered) {
+            unregisterReceiver(downloadReceiver);
+            receiverRegistered = false;
+        }
     }
 }
 
