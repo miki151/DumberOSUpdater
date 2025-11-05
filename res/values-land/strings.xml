@@ -15,4 +15,6 @@
     <string name="gapps_yes">Yes</string>
     <string name="gapps_no">No</string>
     <string name="reboot_now">Reboot now</string>
+    <string name="update_downloading_text">Downloading update</string>
+    <string name="update_installed_reboot_message">Update installed. Reboot the phone to apply.</string>
 </resources>

@@ -20,4 +20,4 @@
     <string name="updates_notification_title">به‌‎روزرسانی‎‌های تازه</string>
     <string name="updates_notification_text">دریافت به‌روزرسانی</string>
     <string name="update_preparing_text">در حال آماده‌سازی به‌روزرسانی</string>
-</resources>
+<string name="update_downloading_text">در حال بارگیری</string><string name="update_installed_reboot_message">به‌روزرسانی نصب شد. راه‌اندازی مجدد</string></resources>

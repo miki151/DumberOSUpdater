@@ -20,4 +20,4 @@
     <string name="updates_notification_title">有新的更新</string>
     <string name="updates_notification_text">下載更新</string>
     <string name="update_preparing_text">正在準備更新</string>
-</resources>
+    <string name="update_downloading_text">下載中</string><string name="update_installed_reboot_message">更新已安裝。重新啟動</string></resources>

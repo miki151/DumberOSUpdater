@@ -20,4 +20,4 @@
     <string name="updates_notification_title">Új frissítések</string>
     <string name="updates_notification_text">Frissítés letöltése</string>
     <string name="update_preparing_text">A frissítés előzetes előkészítése</string>
-</resources>
+<string name="update_downloading_text">Letöltés</string><string name="update_installed_reboot_message">A frissítés telepítve. Újraindítás</string></resources>

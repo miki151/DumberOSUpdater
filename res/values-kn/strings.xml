@@ -20,4 +20,4 @@
     <string name="updates_notification_title">ಹೊಸ ನವೀಕರಣ ಲಭ್ಯ</string>
     <string name="updates_notification_text">ನವೀಕರಣವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ</string>
     <string name="update_preparing_text">ನವೀಕರಣಕ್ಕೆ ಸಿದ್ಧಗೊಳ್ಳುತ್ತಿದೆ</string>
-</resources>
+    <string name="update_downloading_text">ಇಳಿಸುತ್ತಿದೆ</string><string name="update_installed_reboot_message">ನವೀಕರಣವನ್ನು ಸ್ಥಾಪಿಸಲಾಗಿದೆ. ಈಗ ಮರುಪ್ರಾರಂಭಿಸಿ</string></resources>

@@ -20,4 +20,4 @@
     <string name="updates_notification_title">การอัปเดตใหม่</string>
     <string name="updates_notification_text">ดาวน์โหลดการอัปเดต</string>
     <string name="update_preparing_text">เตรียมการอัปเดตเบื้องต้น</string>
-</resources>
+<string name="update_downloading_text">กำลังดาวน์โหลด</string><string name="update_installed_reboot_message">ติดตั้งการอัปเดตเรียบร้อยแล้ว. เริ่มระบบใหม่</string></resources>

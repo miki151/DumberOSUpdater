@@ -20,4 +20,4 @@
     <string name="updates_notification_title">تحديثات جديدة</string>
     <string name="updates_notification_text">تنزيل التحديث</string>
     <string name="update_preparing_text">التجهيز للتحديث الأولي</string>
-</resources>
+    <string name="update_downloading_text">جارٍ التنزيل</string><string name="update_installed_reboot_message">تم تثبيت التحديث. أعد التشغيل</string></resources>

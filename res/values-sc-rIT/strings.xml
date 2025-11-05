@@ -20,4 +20,4 @@
     <string name="updates_notification_title">Agiornamentos noos</string>
     <string name="updates_notification_text">Ischàrca s’atzornamentu</string>
     <string name="update_preparing_text">Preparande s’atzornamentu</string>
-</resources>
+    <string name="update_downloading_text">Ischarchende</string><string name="update_installed_reboot_message">Agiornamentu installadu. Torra a allùghere</string></resources>

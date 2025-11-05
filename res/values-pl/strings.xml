@@ -20,4 +20,4 @@
     <string name="updates_notification_title">Nowe aktualizacje</string>
     <string name="updates_notification_text">Pobierz aktualizację</string>
     <string name="update_preparing_text">Przygotowanie wstępne aktualizacji</string>
-</resources>
+<string name="update_downloading_text">Pobieranie</string><string name="update_installed_reboot_message">Zainstalowano aktualizację. Uruchom ponownie</string></resources>
