@@ -15,4 +15,9 @@
     <string name="gapps_yes">Yes</string>
     <string name="gapps_no">No</string>
     <string name="reboot_now">გადატვირთვა</string>
+    <string name="updates_channel_name">ბოლო განახლებები</string>
+    <string name="updates_channel_description">ბოლო განახლებები</string>
+    <string name="updates_notification_title">ბოლო განახლებები</string>
+    <string name="updates_notification_text">განახლების ჩამოტვირთვა</string>
+    <string name="update_preparing_text">წინასწარი მომზადება განახლებისთვის</string>
 </resources>

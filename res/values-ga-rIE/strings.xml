@@ -15,4 +15,9 @@
     <string name="gapps_yes">Yes</string>
     <string name="gapps_no">No</string>
     <string name="reboot_now">Atosaigh</string>
+    <string name="updates_channel_name">Nuashonruithe nua</string>
+    <string name="updates_channel_description">Nuashonruithe nua</string>
+    <string name="updates_notification_title">Nuashonruithe nua</string>
+    <string name="updates_notification_text">Íoslódáil an nuashonrú</string>
+    <string name="update_preparing_text">Réamh-ullmhúchán nuashonraithe</string>
 </resources>

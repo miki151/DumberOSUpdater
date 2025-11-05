@@ -15,4 +15,9 @@
     <string name="gapps_yes">Sí</string>
     <string name="gapps_no">No</string>
     <string name="reboot_now">Reiniciar ahora</string>
+    <string name="updates_channel_name">Comprobación de actualizaciones de Dumbdroid</string>
+    <string name="updates_channel_description">Comprobación de actualizaciones de Dumbdroid</string>
+    <string name="updates_notification_title">Nueva actualización disponible</string>
+    <string name="updates_notification_text">Descargar actualización</string>
+    <string name="update_preparing_text">Preparando la actualización</string>
 </resources>

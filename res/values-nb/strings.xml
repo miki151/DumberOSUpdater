@@ -15,4 +15,9 @@
     <string name="gapps_yes">Ja</string>
     <string name="gapps_no">Nei</string>
     <string name="reboot_now">Start på nytt</string>
+    <string name="updates_channel_name">Nye oppdateringer</string>
+    <string name="updates_channel_description">Nye oppdateringer</string>
+    <string name="updates_notification_title">Nye oppdateringer</string>
+    <string name="updates_notification_text">Last ned oppdatering</string>
+    <string name="update_preparing_text">Forbereder oppdatering</string>
 </resources>

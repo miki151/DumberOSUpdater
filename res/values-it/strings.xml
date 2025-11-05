@@ -15,4 +15,9 @@
     <string name="gapps_yes">Sì</string>
     <string name="gapps_no">No</string>
     <string name="reboot_now">Riavvia</string>
+    <string name="updates_channel_name">Nuovi aggiornamenti</string>
+    <string name="updates_channel_description">Nuovi aggiornamenti</string>
+    <string name="updates_notification_title">Nuovi aggiornamenti</string>
+    <string name="updates_notification_text">Scarica aggiornamento</string>
+    <string name="update_preparing_text">Preparazione preliminare dell\'aggiornamento</string>
 </resources>

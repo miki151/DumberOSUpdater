@@ -15,4 +15,9 @@
     <string name="gapps_yes">כן</string>
     <string name="gapps_no">לא</string>
     <string name="reboot_now">הפעלה מחדש</string>
+    <string name="updates_channel_name">עדכונים חדשים</string>
+    <string name="updates_channel_description">עדכונים חדשים</string>
+    <string name="updates_notification_title">עדכונים חדשים</string>
+    <string name="updates_notification_text">הורד עדכון</string>
+    <string name="update_preparing_text">מתכונן להתקנת העדכון</string>
 </resources>

@@ -61,7 +61,6 @@ public class UpdateDownloadService extends Service {
     private static final String TAG = "UpdateDownloadService";
     private static final String CHANNEL_ID = "update_downloads";
     private static final int NOTIFICATION_ID = 1002;
-    private static final String PREPARING_TEXT = "Preparing for update.";
     private static final String DOWNLOADING_TEXT = "Downloading update";
 
     private static final AtomicBoolean sIsRunning = new AtomicBoolean(false);
@@ -73,6 +72,7 @@ public class UpdateDownloadService extends Service {
     private HttpURLConnection downloadConnection;
     private NotificationCompat.Builder notificationBuilder;
     private NotificationManagerCompat notificationManager;
+    private String preparingText;
 
     public static class ProgressInfo {
         public final int state;
@@ -127,6 +127,7 @@ public class UpdateDownloadService extends Service {
         super.onCreate();
         notificationManager = NotificationManagerCompat.from(this);
         createNotificationChannel();
+        preparingText = getString(R.string.update_preparing_text);
     }
 
     private void createNotificationChannel() {
@@ -173,9 +174,9 @@ public class UpdateDownloadService extends Service {
             cancelRequested = false;
             sIsRunning.set(true);
             notificationBuilder = buildNotification();
-            updateNotification(PREPARING_TEXT, -1, true, PREPARING_TEXT);
+            updateNotification(preparingText, -1, true, preparingText);
             startForeground(NOTIFICATION_ID, notificationBuilder.build());
-            broadcastState(STATE_PREPARING, 0, true, PREPARING_TEXT, PREPARING_TEXT, null);
+            broadcastState(STATE_PREPARING, 0, true, preparingText, preparingText, null);
 
             downloadThread = new Thread(() -> performDownload(branch, gapps), "UpdateDownload");
             downloadThread.start();
@@ -235,8 +236,8 @@ public class UpdateDownloadService extends Service {
     }
 
     private String runOtaMakeCommand() {
-        updateNotification(PREPARING_TEXT, -1, true, PREPARING_TEXT);
-        broadcastState(STATE_PREPARING, 0, true, PREPARING_TEXT, PREPARING_TEXT, null);
+        updateNotification(preparingText, -1, true, preparingText);
+        broadcastState(STATE_PREPARING, 0, true, preparingText, preparingText, null);
         SystemProperties.set("ctl.start", "phh-ota-make");
 	sleepFor(1000);
         while (shouldContinue && !"stopped".equals(SystemProperties.get("init.svc.phh-ota-make", ""))) {
@@ -244,8 +245,8 @@ public class UpdateDownloadService extends Service {
             if (!percent.isEmpty()) {
                 try {
                     int value = Integer.parseInt(percent);
-                    broadcastState(STATE_PREPARING, value, false, PREPARING_TEXT, PREPARING_TEXT, null);
-                    updateNotification(PREPARING_TEXT, value, false, PREPARING_TEXT);
+                    broadcastState(STATE_PREPARING, value, false, preparingText, preparingText, null);
+                    updateNotification(preparingText, value, false, preparingText);
                 } catch (NumberFormatException e) {
                     Log.w(TAG, "Failed to parse preparation percent: " + percent, e);
                 }
@@ -260,8 +261,8 @@ public class UpdateDownloadService extends Service {
     }
 
     private String runOtaSwitchCommand() {
-/*        updateNotification(PREPARING_TEXT, -1, true, PREPARING_TEXT);
-        broadcastState(STATE_PREPARING, 0, true, PREPARING_TEXT, PREPARING_TEXT, null);*/
+/*        updateNotification(preparingText, -1, true, preparingText);
+        broadcastState(STATE_PREPARING, 0, true, preparingText, preparingText, null);*/
         SystemProperties.set("ctl.start", "phh-ota-switch");
 	sleepFor(1000);
         while (shouldContinue && !"stopped".equals(SystemProperties.get("init.svc.phh-ota-switch", ""))) {
@@ -302,9 +303,9 @@ public class UpdateDownloadService extends Service {
             String lastSpeedText = null;
 
             broadcastState(STATE_DOWNLOADING, 0, indeterminate,
-                    indeterminate ? PREPARING_TEXT : null, DOWNLOADING_TEXT, null);
+                    indeterminate ? preparingText : null, DOWNLOADING_TEXT, null);
             updateNotification(DOWNLOADING_TEXT, 0, indeterminate,
-                    indeterminate ? PREPARING_TEXT : null);
+                    indeterminate ? preparingText : null);
 
             int bytesRead;
             while (shouldContinue && (bytesRead = gzipInput.read(buffer)) != -1) {
@@ -493,4 +494,3 @@ public class UpdateDownloadService extends Service {
         }
     }
 }
-

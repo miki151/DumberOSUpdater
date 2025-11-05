@@ -15,4 +15,9 @@
     <string name="gapps_yes">Da</string>
     <string name="gapps_no">Nu</string>
     <string name="reboot_now">Repornire</string>
+    <string name="updates_channel_name">Actualizări noi</string>
+    <string name="updates_channel_description">Actualizări noi</string>
+    <string name="updates_notification_title">Actualizări noi</string>
+    <string name="updates_notification_text">Descarcă actualizarea</string>
+    <string name="update_preparing_text">Pregătire preliminară pentru actualizare</string>
 </resources>

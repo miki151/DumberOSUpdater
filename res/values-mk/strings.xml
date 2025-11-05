@@ -15,4 +15,9 @@
     <string name="gapps_yes">Да</string>
     <string name="gapps_no">Не</string>
     <string name="reboot_now">Рестартирај сега</string>
+    <string name="updates_channel_name">Нови ажурирања</string>
+    <string name="updates_channel_description">Нови ажурирања</string>
+    <string name="updates_notification_title">Нови ажурирања</string>
+    <string name="updates_notification_text">Преземи ажурирање</string>
+    <string name="update_preparing_text">Подготовка за ажурирање</string>
 </resources>

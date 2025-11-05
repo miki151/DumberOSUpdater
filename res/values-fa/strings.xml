@@ -15,4 +15,9 @@
     <string name="gapps_yes">Yes</string>
     <string name="gapps_no">No</string>
     <string name="reboot_now">راه‌اندازی مجدد</string>
+    <string name="updates_channel_name">به‌‎روزرسانی‎‌های تازه</string>
+    <string name="updates_channel_description">به‌‎روزرسانی‎‌های تازه</string>
+    <string name="updates_notification_title">به‌‎روزرسانی‎‌های تازه</string>
+    <string name="updates_notification_text">دریافت به‌روزرسانی</string>
+    <string name="update_preparing_text">در حال آماده‌سازی به‌روزرسانی</string>
 </resources>

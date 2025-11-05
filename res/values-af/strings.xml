@@ -15,4 +15,9 @@
     <string name="gapps_yes">Yes</string>
     <string name="gapps_no">No</string>
     <string name="reboot_now">Herbegin nou</string>
+    <string name="updates_channel_name">Nuwe bywerkings</string>
+    <string name="updates_channel_description">Nuwe bywerkings</string>
+    <string name="updates_notification_title">Nuwe bywerkings</string>
+    <string name="updates_notification_text">Laai bywerking af</string>
+    <string name="update_preparing_text">Bywerking word voorberei</string>
 </resources>

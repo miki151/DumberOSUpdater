@@ -60,10 +60,10 @@ public class UpdateCheckWorker extends JobService {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
-                "Dumbdroid Update Checks",
+                getString(R.string.updates_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT
             );
-            channel.setDescription("Notifies when a new ROM build is available");
+            channel.setDescription(getString(R.string.updates_channel_description));
             mgr.createNotificationChannel(channel);
         }
 
@@ -77,13 +77,12 @@ public class UpdateCheckWorker extends JobService {
 
         NotificationCompat.Builder nb = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_update)
-            .setContentTitle("New update available")
-            .setContentText("Tap to view and install")
+            .setContentTitle(getString(R.string.updates_notification_title))
+            .setContentText(getString(R.string.updates_notification_text))
             .setContentIntent(pi)
             .setAutoCancel(true);
 
         NotificationManagerCompat.from(this).notify(1001, nb.build());
     }
 }
-
 

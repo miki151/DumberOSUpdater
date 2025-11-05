@@ -15,4 +15,9 @@
     <string name="gapps_yes">نعم</string>
     <string name="gapps_no">لا</string>
     <string name="reboot_now">إعادة التشغيل</string>
+    <string name="updates_channel_name">تحديثات جديدة</string>
+    <string name="updates_channel_description">تحديثات جديدة</string>
+    <string name="updates_notification_title">تحديثات جديدة</string>
+    <string name="updates_notification_text">تنزيل التحديث</string>
+    <string name="update_preparing_text">التجهيز للتحديث الأولي</string>
 </resources>
