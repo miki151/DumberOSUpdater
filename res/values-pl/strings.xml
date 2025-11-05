@@ -14,5 +14,5 @@
     <string name="unstable">niestabilna</string>
     <string name="gapps_yes">Tak</string>
     <string name="gapps_no">Nie</string>
+    <string name="reboot_now">Uruchom ponownie</string>
 </resources>
-

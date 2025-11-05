@@ -14,5 +14,5 @@
     <string name="unstable">ebastabiilne</string>
     <string name="gapps_yes">Jah</string>
     <string name="gapps_no">Ei</string>
+    <string name="reboot_now">Taaskäivita kohe</string>
 </resources>
-

@@ -14,5 +14,5 @@
     <string name="unstable">нестабилна</string>
     <string name="gapps_yes">Да</string>
     <string name="gapps_no">Не</string>
+    <string name="reboot_now">Рестартирај сега</string>
 </resources>
-

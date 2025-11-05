@@ -14,4 +14,5 @@
     <string name="unstable">غير مستقر</string>
     <string name="gapps_yes">نعم</string>
     <string name="gapps_no">لا</string>
+    <string name="reboot_now">إعادة التشغيل</string>
 </resources>

@@ -14,5 +14,5 @@
     <string name="unstable">kararsız</string>
     <string name="gapps_yes">Evet</string>
     <string name="gapps_no">Hayır</string>
+    <string name="reboot_now">Yeniden başlat</string>
 </resources>
-

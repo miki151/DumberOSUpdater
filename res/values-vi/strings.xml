@@ -14,5 +14,5 @@
     <string name="unstable">không ổn định</string>
     <string name="gapps_yes">Có</string>
     <string name="gapps_no">Không</string>
+    <string name="reboot_now">Khởi động lại</string>
 </resources>
-

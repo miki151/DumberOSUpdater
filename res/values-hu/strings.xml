@@ -14,5 +14,5 @@
     <string name="unstable">instabil</string>
     <string name="gapps_yes">Igen</string>
     <string name="gapps_no">Nem</string>
+    <string name="reboot_now">Újraindítás</string>
 </resources>
-
