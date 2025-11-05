@@ -226,16 +226,19 @@ public class UpdateDownloadService extends Service {
         downloadPackage(info);
     }
 
+    private void sleepFor(int milli) {
+        try {
+            Thread.sleep(milli);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     private String runOtaMakeCommand() {
         updateNotification(PREPARING_TEXT, -1, true, PREPARING_TEXT);
         broadcastState(STATE_PREPARING, 0, true, PREPARING_TEXT, PREPARING_TEXT, null);
         SystemProperties.set("ctl.start", "phh-ota-make");
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
+	sleepFor(1000);
         while (shouldContinue && !"stopped".equals(SystemProperties.get("init.svc.phh-ota-make", ""))) {
             String percent = SystemProperties.get("phh.ota.progress", "");
             if (!percent.isEmpty()) {
@@ -247,11 +250,7 @@ public class UpdateDownloadService extends Service {
                     Log.w(TAG, "Failed to parse preparation percent: " + percent, e);
                 }
             }
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+            sleepFor(100);
         }
 
         if (!shouldContinue) {
@@ -259,6 +258,22 @@ public class UpdateDownloadService extends Service {
         }
         return SystemProperties.get("phh.ota.error", "");
     }
+
+    private String runOtaSwitchCommand() {
+/*        updateNotification(PREPARING_TEXT, -1, true, PREPARING_TEXT);
+        broadcastState(STATE_PREPARING, 0, true, PREPARING_TEXT, PREPARING_TEXT, null);*/
+        SystemProperties.set("ctl.start", "phh-ota-switch");
+	sleepFor(1000);
+        while (shouldContinue && !"stopped".equals(SystemProperties.get("init.svc.phh-ota-switch", ""))) {
+            sleepFor(100);
+        }
+
+        if (!shouldContinue) {
+            return null;
+        }
+        return SystemProperties.get("phh.ota.error", "");
+    }
+
 
     private void downloadPackage(UpdaterActivity.UpdateInfo info) {
         InputStream rawInput = null;
@@ -336,8 +351,15 @@ public class UpdateDownloadService extends Service {
             finishAsCanceled();
             return;
         }
-
-        SystemProperties.set("ctl.start", "phh-ota-switch");
+        String verifyError = runOtaSwitchCommand();
+        if (!shouldContinue) {
+            finishAsCanceled();
+            return;
+        }
+        if (verifyError != null && !verifyError.isEmpty()) {
+            finishWithError("Error verifying image: " + verifyError);
+            return;
+        }
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.edit()
                 .remove(UpdaterActivity.KEY_UPDATE_VERSION)

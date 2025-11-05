@@ -3,6 +3,7 @@
     <string name="updater_tile_title">Updates</string>
     <string name="updater_tile_summary">Check for new builds</string>
     <string name="check_updates">Check for updates</string>
+    <string name="reboot_now">Reboot now</string>
     <string name="update_available">Update available: </string>
     <string name="install_update">Download update</string>
     <string name="cancel_update">Cancel update</string>

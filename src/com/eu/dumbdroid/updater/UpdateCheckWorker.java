@@ -29,13 +29,15 @@ public class UpdateCheckWorker extends JobService {
             long buildTs = UpdaterActivity.checkForUpdates(this, prefs, branch, UpdaterActivity.getGapps(prefs));
 
             if (buildTs > 0) {
+		Log.i(TAG, "New update reported");
                 long lastNotified = prefs.getLong(KEY_PREF_NOTIFIED_BUILD, 0);
                 if (lastNotified < buildTs) {
                     showNotification();
                     prefs.edit()
                         .putLong(KEY_PREF_NOTIFIED_BUILD, buildTs)
                         .apply();
-                }
+                } else
+		   Log.i(TAG, "Already notified for this update: " + lastNotified);
             }
             // No more work to do in background thread
             jobFinished(params, false);
@@ -50,6 +52,7 @@ public class UpdateCheckWorker extends JobService {
     }
 
     private void showNotification() {
+	Log.i(TAG, "Posting new update notification");
         NotificationManager mgr =
             (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 

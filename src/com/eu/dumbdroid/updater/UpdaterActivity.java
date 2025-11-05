@@ -4,6 +4,7 @@ import android.os.Build;
 import android.content.BroadcastReceiver;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.os.SystemProperties;
 import android.preference.PreferenceManager;
 import android.view.View;
@@ -95,7 +96,7 @@ public class UpdaterActivity extends AppCompatActivity {
 
     static private String constructManifestUrl(String branch, String gapps) {
         String vndk   = SystemProperties.get("ro.vndk.version", "unknown");
-        return "https://dumbdroid.eu/ota/" + branch + "/" + gapps + vndk + ".json";
+        return "https://ota.dumbdroid.eu/" + branch + "/" + gapps + vndk + ".json";
     }
 
     private static final String PREPARING_TEXT = "Preparing for update.";
@@ -121,6 +122,33 @@ public class UpdaterActivity extends AppCompatActivity {
         tvPercent.setText("");
         tvSpeed.setVisibility(View.GONE);
         tvSpeed.setText("");
+    }
+
+    private long getCurrentBuildTimestamp() {
+        try {
+            return Long.parseLong(SystemProperties.get("ro.system.build.date.utc", "0"));
+        } catch (NumberFormatException e) {
+            Log.e(TAG, "Failed to parse current build timestamp", e);
+            return 0;
+        }
+    }
+
+    private boolean isRebootPending() {
+        return prefs.getLong(KEY_DOWNLOADED_BUILD, 0) > getCurrentBuildTimestamp();
+    }
+
+    private void rebootDevice() {
+        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (powerManager == null) {
+            Toast.makeText(this, "Unable to reboot device", Toast.LENGTH_LONG).show();
+            return;
+        }
+        try {
+            powerManager.reboot(null);
+        } catch (SecurityException e) {
+            Log.e(TAG, "Failed to reboot device", e);
+            Toast.makeText(this, "Unable to reboot device", Toast.LENGTH_LONG).show();
+        }
     }
 
     private void updateProgressUi(int state, int percent, boolean indeterminate, String speedText,
@@ -158,7 +186,7 @@ public class UpdaterActivity extends AppCompatActivity {
             case UpdateDownloadService.STATE_COMPLETED:
                 setDownloading(false);
                 resetDownloadViews();
-                btnCheck.setText(R.string.check_updates);
+                btnCheck.setText(R.string.reboot_now);
                 Toast.makeText(this, "Download complete!", Toast.LENGTH_LONG).show();
                 recreate();
                 break;
@@ -225,7 +253,11 @@ public class UpdaterActivity extends AppCompatActivity {
         }
         resetDownloadViews();
         String currentVersion = prefs.getString(KEY_UPDATE_VERSION, "");
-        btnCheck.setText(currentVersion.isEmpty() ? R.string.check_updates : R.string.install_update);
+        if (isRebootPending()) {
+            btnCheck.setText(R.string.reboot_now);
+        } else {
+            btnCheck.setText(currentVersion.isEmpty() ? R.string.check_updates : R.string.install_update);
+        }
     }
 
     public static final String TAG = "DumbdroidUpdater";
@@ -498,17 +530,21 @@ public class UpdaterActivity extends AppCompatActivity {
         } else {
             patchnotesScroll.setVisibility(View.GONE);
         }
+        long currentBuildTimestamp = getCurrentBuildTimestamp();
+        long downloadedBuildTimestamp = prefs.getLong(KEY_DOWNLOADED_BUILD, 0);
         if (updateVersion.isEmpty()) {
             Log.i(TAG, "Update version empty "
-                    + SystemProperties.get("ro.system.build.date.utc", "0")
-                    + " " + prefs.getLong(KEY_DOWNLOADED_BUILD, 0));
-            if (Long.parseLong(SystemProperties.get("ro.system.build.date.utc", "0")) < prefs.getLong(KEY_DOWNLOADED_BUILD, 0)) {
+                    + currentBuildTimestamp
+                    + " " + downloadedBuildTimestamp);
+            if (downloadedBuildTimestamp > currentBuildTimestamp) {
                 tvAvailable.setVisibility(View.VISIBLE);
                 tvAvailable.setText("Update installed. Reboot the phone to apply.");
+                btnCheck.setText(R.string.reboot_now);
                 Log.i(TAG, "Update installed");
             } else {
                 // No update: only show check button
                 tvAvailable.setVisibility(View.GONE);
+                btnCheck.setText(R.string.check_updates);
                 Log.i(TAG, "No update available");
             }
         } else {
@@ -524,7 +560,9 @@ public class UpdaterActivity extends AppCompatActivity {
         btnCheck.setOnClickListener(v -> {
             String currentBranch = prefs.getString(KEY_PREF_BRANCH, "stable");
             String currentUpdateVersion = prefs.getString(KEY_UPDATE_VERSION, "");
-            if (currentUpdateVersion.isEmpty()) {
+            if (isRebootPending()) {
+                rebootDevice();
+            } else if (currentUpdateVersion.isEmpty()) {
                 Toast.makeText(this,
                     "Checking for updates.\n", Toast.LENGTH_SHORT).show();
                 new Thread(() -> {
