@@ -61,7 +61,6 @@ public class UpdateDownloadService extends Service {
     private static final String TAG = "UpdateDownloadService";
     private static final String CHANNEL_ID = "update_downloads";
     private static final int NOTIFICATION_ID = 1002;
-    private static final String DOWNLOADING_TEXT = "Downloading update";
 
     private static final AtomicBoolean sIsRunning = new AtomicBoolean(false);
     private static volatile ProgressInfo sLastProgress;
@@ -73,6 +72,7 @@ public class UpdateDownloadService extends Service {
     private NotificationCompat.Builder notificationBuilder;
     private NotificationManagerCompat notificationManager;
     private String preparingText;
+    private String downloadingText;
 
     public static class ProgressInfo {
         public final int state;
@@ -128,6 +128,7 @@ public class UpdateDownloadService extends Service {
         notificationManager = NotificationManagerCompat.from(this);
         createNotificationChannel();
         preparingText = getString(R.string.update_preparing_text);
+        downloadingText = getString(R.string.update_downloading_text);
     }
 
     private void createNotificationChannel() {
@@ -303,8 +304,8 @@ public class UpdateDownloadService extends Service {
             String lastSpeedText = null;
 
             broadcastState(STATE_DOWNLOADING, 0, indeterminate,
-                    indeterminate ? preparingText : null, DOWNLOADING_TEXT, null);
-            updateNotification(DOWNLOADING_TEXT, 0, indeterminate,
+                    indeterminate ? preparingText : null, downloadingText, null);
+            updateNotification(downloadingText, 0, indeterminate,
                     indeterminate ? preparingText : null);
 
             int bytesRead;
@@ -317,8 +318,8 @@ public class UpdateDownloadService extends Service {
                     double speed = totalBytes / Math.max((now - startTime) / 1000.0, 0.001);
                     lastSpeedText = String.format(Locale.US, "%.1f KB/s", speed / 1024);
                     broadcastState(STATE_DOWNLOADING, percent, indeterminate, lastSpeedText,
-                            DOWNLOADING_TEXT, null);
-                    updateNotification(DOWNLOADING_TEXT, percent, indeterminate, lastSpeedText);
+                            downloadingText, null);
+                    updateNotification(downloadingText, percent, indeterminate, lastSpeedText);
                     lastUpdate = now;
                 }
             }
@@ -326,8 +327,8 @@ public class UpdateDownloadService extends Service {
             out.flush();
 
             if (!indeterminate) {
-                broadcastState(STATE_DOWNLOADING, 100, false, lastSpeedText, DOWNLOADING_TEXT, null);
-                updateNotification(DOWNLOADING_TEXT, 100, false, lastSpeedText);
+                broadcastState(STATE_DOWNLOADING, 100, false, lastSpeedText, downloadingText, null);
+                updateNotification(downloadingText, 100, false, lastSpeedText);
             }
         } catch (Exception e) {
             Log.e(TAG, "Download failed", e);

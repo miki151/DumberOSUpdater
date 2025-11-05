@@ -99,7 +99,7 @@ public class UpdaterActivity extends AppCompatActivity {
         return "https://ota.dumbdroid.eu/" + branch + "/" + gapps + vndk + ".json";
     }
 
-    private static final String PREPARING_TEXT = "Preparing for update.";
+    // String moved to resources: R.string.update_preparing_text
 
     private void setDownloading(boolean downloading) {
         isDownloading = downloading;
@@ -230,7 +230,7 @@ public class UpdaterActivity extends AppCompatActivity {
                 progressBar.setIndeterminate(true);
                 progressBar.setProgress(0);
                 tvPercent.setText("0%");
-                tvSpeed.setText(PREPARING_TEXT);
+                tvSpeed.setText(getString(R.string.update_preparing_text));
                 btnCheck.setText(R.string.cancel_update);
                 if (!isDownloading) {
                     setDownloading(true);
@@ -538,7 +538,7 @@ public class UpdaterActivity extends AppCompatActivity {
                     + " " + downloadedBuildTimestamp);
             if (downloadedBuildTimestamp > currentBuildTimestamp) {
                 tvAvailable.setVisibility(View.VISIBLE);
-                tvAvailable.setText("Update installed. Reboot the phone to apply.");
+                tvAvailable.setText(getString(R.string.update_installed_reboot_message));
                 btnCheck.setText(R.string.reboot_now);
                 Log.i(TAG, "Update installed");
             } else {
@@ -576,7 +576,7 @@ public class UpdaterActivity extends AppCompatActivity {
                 progressBar.setIndeterminate(true);
                 progressBar.setProgress(0);
                 tvPercent.setText("0%");
-                tvSpeed.setText(PREPARING_TEXT);
+                tvSpeed.setText(getString(R.string.update_preparing_text));
                 btnCheck.setText(R.string.cancel_update);
                 if (!isDownloading) {
                     setDownloading(true);
@@ -607,4 +607,3 @@ public class UpdaterActivity extends AppCompatActivity {
         }
     }
 }
-
