@@ -1,0 +1,9 @@
+<resources>
+    <color name="toolbar_title_color">#FFFFFF</color>
+    <color name="toolbar_icon_color">#FFFFFF</color>
+    <color name="colorPrimary">#424849</color>
+    <!-- Activity background color -->
+    <color name="app_background">#171d1e</color>
+    <!-- Check for updates button text color -->
+    <color name="update_button_text">#FFFFFF</color>
+</resources>

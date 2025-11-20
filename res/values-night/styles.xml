@@ -1,0 +1,14 @@
+<resources>
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+    </style>
+
+    <style name="AppTheme.Toolbar" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="android:textColorPrimary">@color/toolbar_title_color</item>
+        <item name="colorControlNormal">@color/toolbar_icon_color</item>
+    </style>
+
+    <style name="AppTheme.PopupMenu" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="android:textColor">@color/toolbar_title_color</item>
+    </style>
+</resources>
