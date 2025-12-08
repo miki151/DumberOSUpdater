@@ -14,6 +14,7 @@ import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.util.Base64;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -27,8 +28,15 @@ import java.io.Closeable;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPInputStream;
@@ -57,10 +65,13 @@ public class UpdateDownloadService extends Service {
     public static final int STATE_COMPLETED = 2;
     public static final int STATE_ERROR = 3;
     public static final int STATE_CANCELED = 4;
+    public static final int STATE_SIGNATURE_WARNING = 5;
 
     private static final String TAG = "UpdateDownloadService";
     private static final String CHANNEL_ID = "update_downloads";
     private static final int NOTIFICATION_ID = 1002;
+    private static final String ACTION_CONTINUE_WITHOUT_SIGNATURE =
+            "eu.dumbdroid.updater.action.CONTINUE_WITHOUT_SIGNATURE";
 
     private static final AtomicBoolean sIsRunning = new AtomicBoolean(false);
     private static volatile ProgressInfo sLastProgress;
@@ -73,6 +84,13 @@ public class UpdateDownloadService extends Service {
     private NotificationManagerCompat notificationManager;
     private String preparingText;
     private String downloadingText;
+    private final Object decisionLock = new Object();
+    private SignatureDecisionWaiter pendingSignatureDecision;
+
+    private static final class SignatureDecisionWaiter {
+        boolean decided;
+        boolean proceed;
+    }
 
     public static class ProgressInfo {
         public final int state;
@@ -107,6 +125,12 @@ public class UpdateDownloadService extends Service {
     public static void cancelDownload(Context context) {
         Intent intent = new Intent(context, UpdateDownloadService.class);
         intent.setAction(ACTION_CANCEL_DOWNLOAD);
+        context.startService(intent);
+    }
+
+    public static void continueWithoutSignature(Context context) {
+        Intent intent = new Intent(context, UpdateDownloadService.class);
+        intent.setAction(ACTION_CONTINUE_WITHOUT_SIGNATURE);
         context.startService(intent);
     }
 
@@ -184,6 +208,12 @@ public class UpdateDownloadService extends Service {
             return START_STICKY;
         } else if (ACTION_CANCEL_DOWNLOAD.equals(action)) {
             requestCancel();
+            if (!sIsRunning.get()) {
+                stopSelf();
+            }
+            return START_NOT_STICKY;
+        } else if (ACTION_CONTINUE_WITHOUT_SIGNATURE.equals(action)) {
+            resolveSignatureDecision(true);
             if (!sIsRunning.get()) {
                 stopSelf();
             }
@@ -278,6 +308,14 @@ public class UpdateDownloadService extends Service {
 
 
     private void downloadPackage(UpdaterActivity.UpdateInfo info) {
+        final Signature signatureVerifier;
+        try {
+            signatureVerifier = createSignatureVerifier();
+        } catch (Exception e) {
+            finishWithError("Failed to load public key: " + e.getMessage());
+            return;
+        }
+
         InputStream rawInput = null;
         CountingInputStream countingInput = null;
         GZIPInputStream gzipInput = null;
@@ -310,6 +348,7 @@ public class UpdateDownloadService extends Service {
 
             int bytesRead;
             while (shouldContinue && (bytesRead = gzipInput.read(buffer)) != -1) {
+                signatureVerifier.update(buffer, 0, bytesRead);
                 out.write(buffer, 0, bytesRead);
                 long totalBytes = countingInput.getCount();
                 int percent = indeterminate ? 0 : (int) (totalBytes * 100 / fileLength);
@@ -353,6 +392,28 @@ public class UpdateDownloadService extends Service {
             finishAsCanceled();
             return;
         }
+        String signatureWarning = null;
+        try {
+            byte[] signatureBytes = downloadSignatureFile(info.url);
+            if (!shouldContinue || cancelRequested) {
+                finishAsCanceled();
+                return;
+            }
+            if (signatureBytes == null || signatureBytes.length == 0) {
+                signatureWarning = "Signature missing for this build.";
+            } else if (!signatureVerifier.verify(signatureBytes)) {
+                signatureWarning = "Invalid image signature.";
+            }
+        } catch (Exception e) {
+            signatureWarning = "Signature verification failed: " + e.getMessage();
+        }
+
+        if (signatureWarning != null) {
+            if (!promptUserForUnverifiedInstall(signatureWarning)) {
+                finishAsCanceled();
+                return;
+            }
+        }
         String verifyError = runOtaSwitchCommand();
         if (!shouldContinue) {
             finishAsCanceled();
@@ -371,9 +432,125 @@ public class UpdateDownloadService extends Service {
         finishSuccessfully();
     }
 
+    private Signature createSignatureVerifier() throws GeneralSecurityException, IOException {
+        PublicKey publicKey = loadPublicKey();
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initVerify(publicKey);
+        return signature;
+    }
+
+    private PublicKey loadPublicKey() throws IOException, GeneralSecurityException {
+        try (InputStream keyStream = getResources().openRawResource(R.raw.pubkey);
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream()) {
+            byte[] data = new byte[4096];
+            int read;
+            while ((read = keyStream.read(data)) != -1) {
+                buffer.write(data, 0, read);
+            }
+            String pem = buffer.toString(StandardCharsets.US_ASCII.name());
+            String cleanPem = pem.replace("-----BEGIN PUBLIC KEY-----", "")
+                    .replace("-----END PUBLIC KEY-----", "")
+                    .replaceAll("\\s", "");
+            byte[] decoded = Base64.decode(cleanPem, Base64.DEFAULT);
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(decoded);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            return keyFactory.generatePublic(spec);
+        }
+    }
+
+    private byte[] downloadSignatureFile(String baseUrl) throws IOException {
+        HttpURLConnection connection = null;
+        try {
+            String urlString = baseUrl.endsWith(".gz")
+                    ? baseUrl.substring(0, baseUrl.length() - 3)
+                    : baseUrl;
+            urlString = urlString + ".sig";
+            URL url = new URL(urlString);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(10000);
+            connection.connect();
+            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                throw new IOException("HTTP " + connection.getResponseCode());
+            }
+            downloadConnection = connection;
+            try (InputStream in = new BufferedInputStream(connection.getInputStream());
+                    ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[4096];
+                int read;
+                while (shouldContinue && (read = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, read);
+                }
+                if (!shouldContinue) {
+                    return null;
+                }
+                return out.toByteArray();
+            }
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+            downloadConnection = null;
+        }
+    }
+
+    private boolean promptUserForUnverifiedInstall(String warningMessage) {
+        String message = warningMessage != null ? warningMessage
+                : getString(R.string.signature_warning_message);
+        SignatureDecisionWaiter waiter = new SignatureDecisionWaiter();
+        synchronized (decisionLock) {
+            pendingSignatureDecision = waiter;
+        }
+        showSignatureWarningNotification(message);
+        broadcastState(STATE_SIGNATURE_WARNING, 100, false, null, message, warningMessage);
+        synchronized (decisionLock) {
+            while (!waiter.decided && shouldContinue && !cancelRequested) {
+                try {
+                    decisionLock.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            }
+            pendingSignatureDecision = null;
+        }
+        boolean proceed = waiter.decided && waiter.proceed && shouldContinue && !cancelRequested;
+        if (proceed) {
+            notificationBuilder = buildNotification();
+            broadcastState(STATE_PREPARING, 0, true, preparingText, preparingText, null);
+            updateNotification(preparingText, -1, true, preparingText);
+        }
+        return proceed;
+    }
+
+    private void showSignatureWarningNotification(String message) {
+        Intent continueIntent = new Intent(this, UpdateDownloadService.class);
+        continueIntent.setAction(ACTION_CONTINUE_WITHOUT_SIGNATURE);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        PendingIntent continuePending = PendingIntent.getService(this, 1, continueIntent, flags);
+
+        Intent cancelIntent = new Intent(this, UpdateDownloadService.class);
+        cancelIntent.setAction(ACTION_CANCEL_DOWNLOAD);
+        PendingIntent cancelPending = PendingIntent.getService(this, 2, cancelIntent, flags);
+
+        NotificationCompat.Builder builder = buildNotification()
+                .setContentText(message)
+                .setSubText(getString(R.string.signature_warning_subtext))
+                .setProgress(0, 0, false)
+                .setOngoing(true)
+                .addAction(0, getString(R.string.continue_unverified), continuePending)
+                .addAction(0, getString(android.R.string.cancel), cancelPending);
+        notificationBuilder = builder;
+        notificationManager.notify(NOTIFICATION_ID, builder.build());
+    }
+
     private void requestCancel() {
         cancelRequested = true;
         shouldContinue = false;
+        resolveSignatureDecision(false);
         if (downloadConnection != null) {
             downloadConnection.disconnect();
             downloadConnection = null;
@@ -391,6 +568,16 @@ public class UpdateDownloadService extends Service {
 
     private void finishAsCanceled() {
         complete(STATE_CANCELED, 0, null, "Download canceled", null, true);
+    }
+
+    private void resolveSignatureDecision(boolean proceed) {
+        synchronized (decisionLock) {
+            if (pendingSignatureDecision != null) {
+                pendingSignatureDecision.decided = true;
+                pendingSignatureDecision.proceed = proceed;
+                decisionLock.notifyAll();
+            }
+        }
     }
 
     private synchronized void complete(int state, int percent, String speedText,

@@ -183,6 +183,11 @@ public class UpdaterActivity extends AppCompatActivity {
             case UpdateDownloadService.STATE_DOWNLOADING:
                 updateProgressUi(state, percent, indeterminate, speedText, message);
                 break;
+            case UpdateDownloadService.STATE_SIGNATURE_WARNING:
+                updateProgressUi(state, percent == 0 ? 100 : percent, false, speedText,
+                        message != null ? message : getString(R.string.signature_warning_message));
+                showSignatureWarningDialog(message);
+                break;
             case UpdateDownloadService.STATE_COMPLETED:
                 setDownloading(false);
                 resetDownloadViews();
@@ -373,6 +378,34 @@ public class UpdaterActivity extends AppCompatActivity {
             .setPositiveButton(android.R.string.ok, (dialog, which) -> dialog.dismiss())
             .setCancelable(true)
             .show();
+    }
+
+    private void showSignatureWarningDialog(String message) {
+        final String dialogMessage = message != null ? message
+                : getString(R.string.signature_warning_message);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setMessage(dialogMessage)
+            .setPositiveButton(
+                    R.string.continue_unverified,
+                    (d, which) -> {
+                        d.dismiss();
+                        UpdateDownloadService.continueWithoutSignature(this);
+                    })
+            .setNegativeButton(
+                    android.R.string.cancel,
+                    (d, which) -> {
+                        d.dismiss();
+                        UpdateDownloadService.cancelDownload(this);
+                    })
+            .setCancelable(false)
+            .show();
+
+        TextView messageText = dialog.findViewById(android.R.id.message);
+        if (messageText != null) {
+            int color = messageText.getCurrentTextColor();
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(color);
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(color);
+        }
     }
 
     private void updateActivityTitle(String branch) {
