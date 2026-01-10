@@ -235,7 +235,7 @@ public class UpdateDownloadService extends Service {
     }
 
     private void performDownload(String branch, String gapps) {
-        UpdaterActivity.UpdateInfo info = UpdaterActivity.downloadUpdateManifest(branch, gapps);
+        UpdaterActivity.UpdateInfo info = UpdaterActivity.downloadUpdateManifest(branch, gapps, 0);
         if (info == null) {
             finishWithError("Couldn't download manifest.");
             return;

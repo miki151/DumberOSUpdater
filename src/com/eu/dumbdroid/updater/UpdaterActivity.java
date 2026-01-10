@@ -94,9 +94,9 @@ public class UpdaterActivity extends AppCompatActivity {
         return sb.toString();
     }
 
-    static private String constructManifestUrl(String branch, String gapps) {
+    static private String constructManifestUrl(String branch, String gapps, long current) {
         String vndk   = SystemProperties.get("ro.vndk.version", "unknown");
-        return "https://ota.dumbdroid.eu/" + branch + "/" + gapps + vndk + ".json";
+        return "https://ota.dumbdroid.eu/" + branch + "/" + gapps + vndk + ".json?current=" + current;
     }
 
     // String moved to resources: R.string.update_preparing_text
@@ -275,8 +275,8 @@ public class UpdaterActivity extends AppCompatActivity {
         String url;
     }
 
-    static public UpdateInfo downloadUpdateManifest(String branch, String gapps) {
-        String manifestUrl = constructManifestUrl(branch, gapps);
+    static public UpdateInfo downloadUpdateManifest(String branch, String gapps, long currentBuild) {
+        String manifestUrl = constructManifestUrl(branch, gapps, currentBuild);
         try {
             // 1. Download JSON
             Log.w(TAG, "Download update manifest from " + manifestUrl);
@@ -339,12 +339,12 @@ public class UpdaterActivity extends AppCompatActivity {
 	Log.i(TAG, "Checking for updates for branch " + branch + " " + gapps);
         clearDownloadedBuildOnceAfterBoot(context, prefs);
         try {
-            UpdateInfo info = downloadUpdateManifest(branch, gapps);
             // 3. Get local build timestamp
             long localTs = Math.max(
                     Long.parseLong(SystemProperties.get("ro.system.build.date.utc", "0")),
                     prefs.getLong(KEY_DOWNLOADED_BUILD, 0)
                     );
+            UpdateInfo info = downloadUpdateManifest(branch, gapps, localTs);
 	    String currentGapps = SystemProperties.get("ro.dumbdroid.branch", "vanilla");
 	    boolean needsGappsUpdate = !prefs.getString(KEY_PREF_GAPPS, currentGapps).equals(currentGapps);
             if (info != null && (info.buildTimeStamp > localTs || needsGappsUpdate)) {
