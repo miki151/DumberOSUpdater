@@ -518,7 +518,7 @@ public class UpdaterActivity extends AppCompatActivity {
         JobInfo.Builder builder = new JobInfo.Builder(1, serviceComponent)
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
             .setPersisted(true)                  // survive reboots
-            .setPeriodic(10000);
+            .setPeriodic(3 * 24 * 60 * 60 * 1000L);
 
         JobScheduler jobScheduler = (JobScheduler) context.getSystemService(JOB_SCHEDULER_SERVICE);
         int result = jobScheduler.schedule(builder.build());
