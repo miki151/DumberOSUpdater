@@ -96,7 +96,7 @@ public class UpdaterActivity extends AppCompatActivity {
 
     static private String constructManifestUrl(String branch, String gapps, long current) {
         String vndk   = SystemProperties.get("ro.vndk.version", "unknown");
-        return "https://ota.dumbdroid.eu/" + branch + "/" + gapps + vndk + ".json?current=" + current;
+        return "https://ota.dumbermini.com/" + branch + "/" + gapps + vndk + ".json?current=" + current;
     }
 
     // String moved to resources: R.string.update_preparing_text
