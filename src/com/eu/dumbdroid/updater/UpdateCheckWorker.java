@@ -15,7 +15,7 @@ import androidx.core.app.NotificationManagerCompat;
 
 public class UpdateCheckWorker extends JobService {
     private static final String TAG = UpdaterActivity.TAG;
-    private static final int JOB_ID = 1;
+    private static final int NOTIFICATION_ID = 1001;
     private static final String CHANNEL_ID = "dumbdroid_updates";
     public static final String KEY_PREF_NOTIFIED_BUILD = "pref_build_notified_build";
 
@@ -25,30 +25,42 @@ public class UpdateCheckWorker extends JobService {
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String branch = prefs.getString(UpdaterActivity.KEY_PREF_BRANCH, "stable");
+        String gapps = UpdaterActivity.getGapps(prefs);
         new Thread(() -> {
-            long buildTs = UpdaterActivity.checkForUpdates(this, prefs, branch, UpdaterActivity.getGapps(prefs));
+            long buildTs = UpdaterActivity.checkForUpdates(this, prefs, branch, gapps);
 
-            if (buildTs > 0) {
-		Log.i(TAG, "New update reported");
-                long lastNotified = prefs.getLong(KEY_PREF_NOTIFIED_BUILD, 0);
-                if (lastNotified < buildTs) {
-                    showNotification();
-                    prefs.edit()
-                        .putLong(KEY_PREF_NOTIFIED_BUILD, buildTs)
-                        .apply();
-                } else
-		   Log.i(TAG, "Already notified for this update: " + lastNotified);
+            synchronized (UpdaterActivity.STATE_LOCK) {
+                if (buildTs > 0 && !UpdateDownloadService.isRunning()
+                        && !UpdaterActivity.isRebootPending(prefs)
+                        && !prefs.getString(UpdaterActivity.KEY_UPDATE_VERSION, "").isEmpty()
+                        && branch.equals(prefs.getString(UpdaterActivity.KEY_PREF_BRANCH, "stable"))
+                        && gapps.equals(UpdaterActivity.getGapps(prefs))) {
+                    Log.i(TAG, "New update reported");
+                    long lastNotified = prefs.getLong(KEY_PREF_NOTIFIED_BUILD, 0);
+                    if (lastNotified < buildTs) {
+                        showNotification();
+                        prefs.edit()
+                            .putLong(KEY_PREF_NOTIFIED_BUILD, buildTs)
+                            .apply();
+                    } else {
+                        Log.i(TAG, "Already notified for this update: " + lastNotified);
+                    }
+                }
             }
             // No more work to do in background thread
             jobFinished(params, false);
         }).start();
-        return true; // our work is done synchronously
+        return true; // Work continues on the background thread.
     }
 
     @Override
     public boolean onStopJob(JobParameters params) {
         // Called if the job is preempted; return true to reschedule
         return true;
+    }
+
+    static void clearNotification(android.content.Context context) {
+        NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID);
     }
 
     private void showNotification() {
@@ -82,7 +94,7 @@ public class UpdateCheckWorker extends JobService {
             .setContentIntent(pi)
             .setAutoCancel(true);
 
-        NotificationManagerCompat.from(this).notify(1001, nb.build());
+        NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, nb.build());
     }
 }
 

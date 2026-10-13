@@ -16,11 +16,6 @@ import android.util.Log;
 import android.provider.Settings;
 import androidx.appcompat.widget.Toolbar;
 
-// Spinner & adapter
-import android.widget.Spinner;
-import android.widget.ArrayAdapter;
-import android.widget.AdapterView;
-
 // View callbacks
 import org.json.JSONObject;
 
@@ -53,7 +48,14 @@ public class UpdaterActivity extends AppCompatActivity {
     public static final String KEY_UPDATE_PATCHNOTES = "pref_update_patchnotes";
     public static final String KEY_PREF_BRANCH = "pref_update_branch";
     public static final String KEY_PREF_GAPPS = "pref_gapps_variant";    
-    private Spinner spinnerBranch;
+    static final Object STATE_LOCK = new Object();
+    static long checkGeneration;
+    static final long CHECK_FAILED = -1;
+    static final long CHECK_SKIPPED = -2;
+    private enum ScreenState { CHECK, CHECKING, AVAILABLE, DOWNLOADING, REBOOT }
+    private ScreenState screenState = ScreenState.CHECK;
+    private boolean isChecking;
+    private AlertDialog signatureDialog;
     private Button btnCheck;
     private TextView tvAvailable;
     private TextView tvPatchnotes;
@@ -62,23 +64,14 @@ public class UpdaterActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private TextView tvPercent, tvSpeed;
 
-    private boolean isDownloading = false;
     private boolean receiverRegistered = false;
+    private UpdateDownloadService.ProgressInfo lastHandledTerminal;
 
     private final BroadcastReceiver downloadReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            int state = intent.getIntExtra(UpdateDownloadService.EXTRA_STATE,
-                    UpdateDownloadService.STATE_DOWNLOADING);
-            int percent = intent.getIntExtra(UpdateDownloadService.EXTRA_PERCENT, 0);
-            boolean indeterminate = intent.getBooleanExtra(UpdateDownloadService.EXTRA_INDETERMINATE, false);
-            String speed = intent.getStringExtra(UpdateDownloadService.EXTRA_SPEED);
-            String message = intent.getStringExtra(UpdateDownloadService.EXTRA_MESSAGE);
-            String error = intent.getStringExtra(UpdateDownloadService.EXTRA_ERROR);
-            handleDownloadState(state, percent, indeterminate, speed, message, error);
-            if (isTerminalDownloadState(state)) {
-                UpdateDownloadService.clearLastProgress();
-            }
+            // Broadcasts wake the screen; the service snapshot is the source of truth.
+            refreshDownloadUiFromService();
         }
     };
 
@@ -99,13 +92,6 @@ public class UpdaterActivity extends AppCompatActivity {
         return "https://ota.dumbermini.com/" + branch + "/" + gapps + vndk + ".json?current=" + current;
     }
 
-    // String moved to resources: R.string.update_preparing_text
-
-    private void setDownloading(boolean downloading) {
-        isDownloading = downloading;
-        invalidateOptionsMenu();
-    }
-
     private void showDownloadViews() {
         progressBar.setVisibility(View.VISIBLE);
         progressBar.setIndeterminate(true);
@@ -124,17 +110,56 @@ public class UpdaterActivity extends AppCompatActivity {
         tvSpeed.setText("");
     }
 
-    private long getCurrentBuildTimestamp() {
-        try {
-            return Long.parseLong(SystemProperties.get("ro.system.build.date.utc", "0"));
-        } catch (NumberFormatException e) {
-            Log.e(TAG, "Failed to parse current build timestamp", e);
-            return 0;
-        }
+    static boolean isRebootPending(SharedPreferences prefs) {
+        // A variant switch can have the same (or an older) build timestamp.
+        return prefs.contains(KEY_DOWNLOADED_BUILD);
     }
 
-    private boolean isRebootPending() {
-        return prefs.getLong(KEY_DOWNLOADED_BUILD, 0) > getCurrentBuildTimestamp();
+    private void renderIdleState() {
+        resetDownloadViews();
+        String version = prefs.getString(KEY_UPDATE_VERSION, "");
+        String notes = prefs.getString(KEY_UPDATE_PATCHNOTES, "");
+        tvPatchnotes.setText(notes);
+        patchnotesScroll.setVisibility(notes.isEmpty() ? View.GONE : View.VISIBLE);
+        if (isRebootPending(prefs)) {
+            screenState = ScreenState.REBOOT;
+            btnCheck.setText(R.string.reboot_now);
+            tvAvailable.setText(R.string.update_installed_reboot_message);
+        } else if (isChecking) {
+            screenState = ScreenState.CHECKING;
+            btnCheck.setText(R.string.checking_updates);
+            tvAvailable.setText(R.string.checking_updates);
+        } else if (!version.isEmpty()) {
+            screenState = ScreenState.AVAILABLE;
+            btnCheck.setText(R.string.install_update);
+            tvAvailable.setText(getString(R.string.update_available) + "\n" + version);
+        } else {
+            screenState = ScreenState.CHECK;
+            btnCheck.setText(R.string.check_updates);
+        }
+        tvAvailable.setVisibility(screenState == ScreenState.CHECK ? View.GONE : View.VISIBLE);
+        btnCheck.setEnabled(screenState != ScreenState.CHECKING);
+        invalidateOptionsMenu();
+    }
+
+    private void startUpdateCheck() {
+        if (isChecking || UpdateDownloadService.isRunning() || isRebootPending(prefs)) return;
+        isChecking = true;
+        renderIdleState();
+        String branch = prefs.getString(KEY_PREF_BRANCH, "stable");
+        String gapps = getGapps();
+        new Thread(() -> {
+            long result = checkForUpdates(this, prefs, branch, gapps);
+            runOnUiThread(() -> {
+                isChecking = false;
+                if (isDestroyed() || isFinishing()) return;
+                refreshDownloadUiFromService();
+                if (result == 0 || result == CHECK_FAILED) {
+                    Toast.makeText(this, result == 0 ? "No new updates" : "Update check failed",
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        }, "UpdateCheck").start();
     }
 
     private void rebootDevice() {
@@ -170,17 +195,25 @@ public class UpdaterActivity extends AppCompatActivity {
         } else {
             tvSpeed.setVisibility(View.GONE);
         }
-        btnCheck.setText(R.string.cancel_update);
-        if (!isDownloading) {
-            setDownloading(true);
-        }
+        boolean finalizing = state == UpdateDownloadService.STATE_FINALIZING;
+        btnCheck.setText(finalizing ? R.string.update_finalizing_text : R.string.cancel_update);
+        screenState = ScreenState.DOWNLOADING;
+        btnCheck.setEnabled(!finalizing);
+        tvAvailable.setVisibility(View.VISIBLE);
+        tvAvailable.setText(message != null ? message : getString(R.string.update_downloading_text));
+        invalidateOptionsMenu();
     }
 
     private void handleDownloadState(int state, int percent, boolean indeterminate,
             String speedText, String message, String error) {
+        if (state != UpdateDownloadService.STATE_SIGNATURE_WARNING && signatureDialog != null) {
+            signatureDialog.dismiss();
+            signatureDialog = null;
+        }
         switch (state) {
             case UpdateDownloadService.STATE_PREPARING:
             case UpdateDownloadService.STATE_DOWNLOADING:
+            case UpdateDownloadService.STATE_FINALIZING:
                 updateProgressUi(state, percent, indeterminate, speedText, message);
                 break;
             case UpdateDownloadService.STATE_SIGNATURE_WARNING:
@@ -189,16 +222,10 @@ public class UpdaterActivity extends AppCompatActivity {
                 showSignatureWarningDialog(message);
                 break;
             case UpdateDownloadService.STATE_COMPLETED:
-                setDownloading(false);
-                resetDownloadViews();
-                btnCheck.setText(R.string.reboot_now);
-                Toast.makeText(this, "Download complete!", Toast.LENGTH_LONG).show();
-                recreate();
+                renderIdleState();
                 break;
             case UpdateDownloadService.STATE_ERROR:
-                setDownloading(false);
-                resetDownloadViews();
-                btnCheck.setText(R.string.install_update);
+                renderIdleState();
                 String errorMessage = error != null ? error
                         : (message != null ? message : "Download failed");
                 if (errorMessage.startsWith("Error creating image")) {
@@ -208,60 +235,28 @@ public class UpdaterActivity extends AppCompatActivity {
                 }
                 break;
             case UpdateDownloadService.STATE_CANCELED:
-                setDownloading(false);
-                resetDownloadViews();
-                btnCheck.setText(R.string.install_update);
+                renderIdleState();
                 Toast.makeText(this, "Download canceled", Toast.LENGTH_SHORT).show();
                 break;
         }
     }
 
-    private boolean isTerminalDownloadState(int state) {
-        return state == UpdateDownloadService.STATE_COMPLETED
-                || state == UpdateDownloadService.STATE_ERROR
-                || state == UpdateDownloadService.STATE_CANCELED;
-    }
-
     private void refreshDownloadUiFromService() {
         UpdateDownloadService.ProgressInfo info = UpdateDownloadService.getLastProgress();
-        boolean serviceRunning = UpdateDownloadService.isRunning();
-
-        if (serviceRunning) {
+        if (UpdateDownloadService.isRunning()) {
             if (info != null) {
                 handleDownloadState(info.state, info.percent, info.indeterminate, info.speedText,
                         info.message, info.error);
             } else {
-                showDownloadViews();
-                progressBar.setIndeterminate(true);
-                progressBar.setProgress(0);
-                tvPercent.setText("0%");
-                tvSpeed.setText(getString(R.string.update_preparing_text));
-                btnCheck.setText(R.string.cancel_update);
-                if (!isDownloading) {
-                    setDownloading(true);
-                }
+                updateProgressUi(UpdateDownloadService.STATE_PREPARING, 0, true, null,
+                        getString(R.string.update_preparing_text));
             }
-            return;
-        }
-
-        if (info != null) {
+        } else if (info != null && info != lastHandledTerminal) {
+            lastHandledTerminal = info;
             handleDownloadState(info.state, info.percent, info.indeterminate, info.speedText,
                     info.message, info.error);
-            if (isTerminalDownloadState(info.state)) {
-                UpdateDownloadService.clearLastProgress();
-            }
-            return;
-        }
-
-        if (isDownloading) {
-            setDownloading(false);
-        }
-        resetDownloadViews();
-        String currentVersion = prefs.getString(KEY_UPDATE_VERSION, "");
-        if (isRebootPending()) {
-            btnCheck.setText(R.string.reboot_now);
         } else {
-            btnCheck.setText(currentVersion.isEmpty() ? R.string.check_updates : R.string.install_update);
+            renderIdleState();
         }
     }
 
@@ -300,10 +295,6 @@ public class UpdaterActivity extends AppCompatActivity {
             return ret;
         } catch (Exception e) {
             Log.e(TAG, "Couldn't download manifest", e);
-/*            runOnUiThread(() ->
-                    Toast.makeText(this, "Update check failed:\n" + e.getMessage(),
-                        Toast.LENGTH_LONG).show()
-                    );*/
             return null;
         }
     }
@@ -321,54 +312,52 @@ public class UpdaterActivity extends AppCompatActivity {
     }
 
     static public void clearDownloadedBuildOnceAfterBoot(Context context, SharedPreferences prefs) {
-	int currentBootCount = currentBootCount(context);
-        int lastBootCount = prefs.getInt(KEY_LAST_BOOT_COUNT, -1);
-        Log.i(TAG, "Current boot count = " + currentBootCount + ", last = " + lastBootCount);
-        if (lastBootCount < currentBootCount) {
-            Log.i(TAG, "Clearing downloaded build key.");
-            prefs.edit()
-                .putInt(KEY_LAST_BOOT_COUNT, currentBootCount)
-                .remove(KEY_DOWNLOADED_BUILD)
-                .apply();
-        } else
-            Log.i(TAG, "Not clearing downloaded build key.");
+        synchronized (STATE_LOCK) {
+            int bootCount = currentBootCount(context);
+            int lastBootCount = prefs.getInt(KEY_LAST_BOOT_COUNT, -1);
+            if (bootCount >= 0 && lastBootCount != bootCount) {
+                prefs.edit().putInt(KEY_LAST_BOOT_COUNT, bootCount)
+                        .remove(KEY_DOWNLOADED_BUILD).apply();
+            }
+        }
     }
 
     static public long checkForUpdates(Context context, SharedPreferences prefs, String branch,
             String gapps) {
-	Log.i(TAG, "Checking for updates for branch " + branch + " " + gapps);
-        clearDownloadedBuildOnceAfterBoot(context, prefs);
+        final long generation;
+        synchronized (STATE_LOCK) {
+            clearDownloadedBuildOnceAfterBoot(context, prefs);
+            if (UpdateDownloadService.isRunning() || isRebootPending(prefs)) return CHECK_SKIPPED;
+            generation = ++checkGeneration;
+        }
+        long localTs;
         try {
-            // 3. Get local build timestamp
-            long localTs = Math.max(
-                    Long.parseLong(SystemProperties.get("ro.system.build.date.utc", "0")),
-                    prefs.getLong(KEY_DOWNLOADED_BUILD, 0)
-                    );
-            UpdateInfo info = downloadUpdateManifest(branch, gapps, localTs);
-	    String currentGapps = SystemProperties.get("ro.dumbdroid.branch", "vanilla");
-	    boolean needsGappsUpdate = !prefs.getString(KEY_PREF_GAPPS, currentGapps).equals(currentGapps);
-            if (info != null && (info.buildTimeStamp > localTs || needsGappsUpdate)) {
-                Log.i(TAG, "New build!");
-                // 4. Newer build! Save into prefs
-                prefs.edit()
-                    .putString(KEY_UPDATE_VERSION, info.version + " (" + info.size + ")")
-                    .putString(KEY_UPDATE_PATCHNOTES, info.patchnotes)
-                    .apply();
-                return info.buildTimeStamp;
-
-                // Refresh UI on main thread
+            localTs = Long.parseLong(SystemProperties.get("ro.system.build.date.utc", "0"));
+        } catch (NumberFormatException e) {
+            Log.e(TAG, "Invalid build timestamp", e);
+            return CHECK_FAILED;
+        }
+        UpdateInfo info = downloadUpdateManifest(branch, gapps, localTs);
+        if (info == null) return CHECK_FAILED; // A failed check must not erase a known update.
+        synchronized (STATE_LOCK) {
+            // Ignore results for a selection that changed while the request was in flight,
+            // or once installation has started. The worker uses the same lock to notify.
+            if (generation != checkGeneration
+                    || UpdateDownloadService.isRunning() || isRebootPending(prefs)
+                    || !branch.equals(prefs.getString(KEY_PREF_BRANCH, "stable"))
+                    || !gapps.equals(getGapps(prefs))) return CHECK_SKIPPED;
+            boolean available = info.buildTimeStamp > localTs
+                    || !gapps.equals(SystemProperties.get("ro.dumbdroid.branch", "vanilla"));
+            SharedPreferences.Editor editor = prefs.edit()
+                    .putString(KEY_UPDATE_PATCHNOTES, info.patchnotes);
+            if (available) {
+                editor.putString(KEY_UPDATE_VERSION, info.version + " (" + info.size + ")");
             } else {
-                prefs.edit()
-                    .remove(KEY_UPDATE_VERSION)
-                    .putString(KEY_UPDATE_PATCHNOTES, info != null ? info.patchnotes : "")
-                    .apply();
-                Log.i(TAG, "No new build.");
-                return 0;
+                editor.remove(KEY_UPDATE_VERSION);
+                UpdateCheckWorker.clearNotification(context);
             }
-
-        } catch (Exception e) {
-	    Log.e(TAG, "Failed to check for updates: ", e);
-            return 0;
+            editor.apply();
+            return available ? info.buildTimeStamp : 0;
         }
     }
 
@@ -381,6 +370,7 @@ public class UpdaterActivity extends AppCompatActivity {
     }
 
     private void showSignatureWarningDialog(String message) {
+        if (signatureDialog != null && signatureDialog.isShowing()) return;
         final String dialogMessage = message != null ? message
                 : getString(R.string.signature_warning_message);
         AlertDialog dialog = new AlertDialog.Builder(this)
@@ -400,6 +390,7 @@ public class UpdaterActivity extends AppCompatActivity {
             .setCancelable(false)
             .show();
 
+        signatureDialog = dialog;
         TextView messageText = dialog.findViewById(android.R.id.message);
         if (messageText != null) {
             int color = messageText.getCurrentTextColor();
@@ -448,25 +439,24 @@ public class UpdaterActivity extends AppCompatActivity {
         }
     }
 
+    private void changeSelection(String key, String value) {
+        synchronized (STATE_LOCK) {
+            if (isChecking || UpdateDownloadService.isRunning() || isRebootPending(prefs)) return;
+            ++checkGeneration;
+            prefs.edit().putString(key, value).remove(KEY_UPDATE_VERSION)
+                    .remove(KEY_UPDATE_PATCHNOTES).apply();
+            UpdateCheckWorker.clearNotification(this);
+        }
+        updateActivityTitle(prefs.getString(KEY_PREF_BRANCH, "stable"));
+        startUpdateCheck();
+    }
+
     private void setBranch(String name) {
-        prefs.edit().putString(KEY_PREF_BRANCH, name).apply();
-        Toast.makeText(this, "Branch set to: " + name, Toast.LENGTH_SHORT).show();
-        updateActivityTitle(name);
-        new Thread(() -> {
-            if (checkForUpdates(this, prefs, name, getGapps()) == 0)
-                runOnUiThread(() -> Toast.makeText(this, "No new updates", Toast.LENGTH_SHORT).show());
-            runOnUiThread(this::recreate);
-        }).start();
+        changeSelection(KEY_PREF_BRANCH, name);
     }
 
     private void setGapps(String value) {
-        prefs.edit().putString(KEY_PREF_GAPPS, value).apply();
-        Toast.makeText(this, "Switched to: " + value, Toast.LENGTH_SHORT).show();
-        new Thread(() -> {
-            if (checkForUpdates(this, prefs, prefs.getString(KEY_PREF_BRANCH, "stable"), value) == 0)
-                runOnUiThread(() -> Toast.makeText(this, "No new updates", Toast.LENGTH_SHORT).show());
-            runOnUiThread(this::recreate);
-        }).start();
+        changeSelection(KEY_PREF_GAPPS, value);
     }
 
     @Override
@@ -508,8 +498,9 @@ public class UpdaterActivity extends AppCompatActivity {
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        menu.findItem(R.id.menu_branch).setEnabled(!isDownloading);
-        menu.findItem(R.id.menu_gapps).setEnabled(!isDownloading);
+        boolean enabled = screenState == ScreenState.CHECK || screenState == ScreenState.AVAILABLE;
+        menu.findItem(R.id.menu_branch).setEnabled(enabled);
+        menu.findItem(R.id.menu_gapps).setEnabled(enabled);
         return super.onPrepareOptionsMenu(menu);
     }
 
@@ -531,7 +522,8 @@ public class UpdaterActivity extends AppCompatActivity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        recreate();
+        setIntent(intent);
+        refreshDownloadUiFromService();
     }
 
     @Override
@@ -554,68 +546,29 @@ public class UpdaterActivity extends AppCompatActivity {
         tvPercent   = findViewById(R.id.tv_percent);
         tvSpeed     = findViewById(R.id.tv_speed);
 
-        String updateVersion      = prefs.getString(KEY_UPDATE_VERSION, "");
-        String patchnotesText = prefs.getString(KEY_UPDATE_PATCHNOTES, "");
+        clearDownloadedBuildOnceAfterBoot(this, prefs);
         updateActivityTitle(prefs.getString(KEY_PREF_BRANCH, "stable"));
-        if (!patchnotesText.isEmpty()) {
-            tvPatchnotes.setText(patchnotesText);
-            patchnotesScroll.setVisibility(View.VISIBLE);
-        } else {
-            patchnotesScroll.setVisibility(View.GONE);
-        }
-        long currentBuildTimestamp = getCurrentBuildTimestamp();
-        long downloadedBuildTimestamp = prefs.getLong(KEY_DOWNLOADED_BUILD, 0);
-        if (updateVersion.isEmpty()) {
-            Log.i(TAG, "Update version empty "
-                    + currentBuildTimestamp
-                    + " " + downloadedBuildTimestamp);
-            if (downloadedBuildTimestamp > currentBuildTimestamp) {
-                tvAvailable.setVisibility(View.VISIBLE);
-                tvAvailable.setText(getString(R.string.update_installed_reboot_message));
-                btnCheck.setText(R.string.reboot_now);
-                Log.i(TAG, "Update installed");
-            } else {
-                // No update: only show check button
-                tvAvailable.setVisibility(View.GONE);
-                btnCheck.setText(R.string.check_updates);
-                Log.i(TAG, "No update available");
-            }
-        } else {
-            tvAvailable.setVisibility(View.VISIBLE);
-            tvAvailable.setText(getString(R.string.update_available) + "\n" + updateVersion);
-            btnCheck.setText(R.string.install_update);
-            Log.i(TAG, "Update available");
-            // Only show patchnotes if non-empty
-        }
-
         refreshDownloadUiFromService();
 
         btnCheck.setOnClickListener(v -> {
-            String currentBranch = prefs.getString(KEY_PREF_BRANCH, "stable");
-            String currentUpdateVersion = prefs.getString(KEY_UPDATE_VERSION, "");
-            if (isRebootPending()) {
-                rebootDevice();
-            } else if (currentUpdateVersion.isEmpty()) {
-                Toast.makeText(this,
-                    "Checking for updates.\n", Toast.LENGTH_SHORT).show();
-                new Thread(() -> {
-                    if (checkForUpdates(this, prefs, currentBranch, getGapps()) == 0)
-                        runOnUiThread(() -> Toast.makeText(this, "No new updates", Toast.LENGTH_SHORT).show());
-                    runOnUiThread(this::recreate);
-                }).start();
-            } else if (!isDownloading) {
-                UpdateDownloadService.startDownload(this, currentBranch, getGapps());
-                showDownloadViews();
-                progressBar.setIndeterminate(true);
-                progressBar.setProgress(0);
-                tvPercent.setText("0%");
-                tvSpeed.setText(getString(R.string.update_preparing_text));
-                btnCheck.setText(R.string.cancel_update);
-                if (!isDownloading) {
-                    setDownloading(true);
-                }
-            } else {
-                UpdateDownloadService.cancelDownload(this);
+            // Dispatch the action that was rendered, never an unseen preference change.
+            switch (screenState) {
+                case CHECK:
+                    startUpdateCheck();
+                    break;
+                case AVAILABLE:
+                    UpdateDownloadService.startDownload(this,
+                            prefs.getString(KEY_PREF_BRANCH, "stable"), getGapps());
+                    refreshDownloadUiFromService();
+                    break;
+                case DOWNLOADING:
+                    UpdateDownloadService.cancelDownload(this);
+                    break;
+                case REBOOT:
+                    rebootDevice();
+                    break;
+                case CHECKING:
+                    break;
             }
         });
     }
@@ -625,7 +578,7 @@ public class UpdaterActivity extends AppCompatActivity {
         super.onStart();
         if (!receiverRegistered) {
             IntentFilter filter = new IntentFilter(UpdateDownloadService.ACTION_PROGRESS);
-            registerReceiver(downloadReceiver, filter);
+            registerReceiver(downloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
             receiverRegistered = true;
         }
         refreshDownloadUiFromService();
@@ -634,6 +587,10 @@ public class UpdaterActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
+        if (signatureDialog != null) {
+            signatureDialog.dismiss();
+            signatureDialog = null;
+        }
         if (receiverRegistered) {
             unregisterReceiver(downloadReceiver);
             receiverRegistered = false;

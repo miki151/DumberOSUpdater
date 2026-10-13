@@ -3,6 +3,7 @@
     <string name="app_name">Dumbdroid Updater</string>
     <string name="updater_tile_title">Updates</string>
     <string name="updater_tile_summary">Check for new builds</string>
+    <string name="checking_updates">Checking for updates…</string>
     <string name="check_updates">Check for updates</string>
     <string name="reboot_now">Reboot now</string>
     <string name="update_available">Update available: </string>
@@ -22,6 +23,7 @@
     <string name="updates_notification_text">Tap to view and install</string>
     <string name="update_preparing_text">Preparing for update.</string>
     <string name="update_downloading_text">Downloading update</string>
+    <string name="update_finalizing_text">Verifying and finalizing update…</string>
     <string name="update_installed_reboot_message">Update installed. Reboot the phone to apply.</string>
     <string name="signature_warning_message">Update signature is missing or invalid. Continue anyway?</string>
     <string name="signature_warning_subtext">Signature not verified</string>

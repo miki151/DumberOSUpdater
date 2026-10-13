@@ -50,13 +50,6 @@ public class UpdateDownloadService extends Service {
     public static final String ACTION_CANCEL_DOWNLOAD = "eu.dumbdroid.updater.action.CANCEL_DOWNLOAD";
     public static final String ACTION_PROGRESS = "eu.dumbdroid.updater.action.PROGRESS";
 
-    public static final String EXTRA_STATE = "extra_state";
-    public static final String EXTRA_PERCENT = "extra_percent";
-    public static final String EXTRA_INDETERMINATE = "extra_indeterminate";
-    public static final String EXTRA_SPEED = "extra_speed";
-    public static final String EXTRA_MESSAGE = "extra_message";
-    public static final String EXTRA_ERROR = "extra_error";
-
     private static final String EXTRA_BRANCH = "extra_branch";
     private static final String EXTRA_GAPPS = "extra_gapps";
 
@@ -66,6 +59,7 @@ public class UpdateDownloadService extends Service {
     public static final int STATE_ERROR = 3;
     public static final int STATE_CANCELED = 4;
     public static final int STATE_SIGNATURE_WARNING = 5;
+    public static final int STATE_FINALIZING = 6;
 
     private static final String TAG = "UpdateDownloadService";
     private static final String CHANNEL_ID = "update_downloads";
@@ -112,14 +106,24 @@ public class UpdateDownloadService extends Service {
     }
 
     public static void startDownload(Context context, String branch, String gapps) {
-        if (!sIsRunning.get()) {
+        synchronized (UpdaterActivity.STATE_LOCK) {
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+            if (sIsRunning.get() || UpdaterActivity.isRebootPending(prefs)) return;
+            ++UpdaterActivity.checkGeneration;
             sLastProgress = null;
+            sIsRunning.set(true); // Reserve immediately, before the service is dispatched.
+            Intent intent = new Intent(context, UpdateDownloadService.class);
+            intent.setAction(ACTION_START_DOWNLOAD);
+            intent.putExtra(EXTRA_BRANCH, branch);
+            intent.putExtra(EXTRA_GAPPS, gapps);
+            try {
+                ContextCompat.startForegroundService(context, intent);
+                UpdateCheckWorker.clearNotification(context);
+            } catch (RuntimeException e) {
+                sIsRunning.set(false);
+                throw e;
+            }
         }
-        Intent intent = new Intent(context, UpdateDownloadService.class);
-        intent.setAction(ACTION_START_DOWNLOAD);
-        intent.putExtra(EXTRA_BRANCH, branch);
-        intent.putExtra(EXTRA_GAPPS, gapps);
-        ContextCompat.startForegroundService(context, intent);
     }
 
     public static void cancelDownload(Context context) {
@@ -140,10 +144,6 @@ public class UpdateDownloadService extends Service {
 
     public static ProgressInfo getLastProgress() {
         return sLastProgress;
-    }
-
-    public static void clearLastProgress() {
-        sLastProgress = null;
     }
 
     @Override
@@ -178,18 +178,19 @@ public class UpdateDownloadService extends Service {
 
         String action = intent.getAction();
         if (ACTION_START_DOWNLOAD.equals(action)) {
-            if (sIsRunning.get()) {
+            if (downloadThread != null) {
                 ProgressInfo info = sLastProgress;
                 if (info != null) {
                     broadcastState(info.state, info.percent, info.indeterminate,
                             info.speedText, info.message, info.error);
                 }
-                return START_STICKY;
+                return START_NOT_STICKY;
             }
 
             String branch = intent.getStringExtra(EXTRA_BRANCH);
             String gapps = intent.getStringExtra(EXTRA_GAPPS);
             if (branch == null || gapps == null) {
+                sIsRunning.set(false);
                 Log.e(TAG, "Missing download parameters");
                 stopSelf();
                 return START_NOT_STICKY;
@@ -197,7 +198,10 @@ public class UpdateDownloadService extends Service {
 
             shouldContinue = true;
             cancelRequested = false;
-            sIsRunning.set(true);
+            synchronized (UpdaterActivity.STATE_LOCK) {
+                sIsRunning.set(true);
+                UpdateCheckWorker.clearNotification(this);
+            }
             notificationBuilder = buildNotification();
             updateNotification(preparingText, -1, true, preparingText);
             startForeground(NOTIFICATION_ID, notificationBuilder.build());
@@ -205,7 +209,7 @@ public class UpdateDownloadService extends Service {
 
             downloadThread = new Thread(() -> performDownload(branch, gapps), "UpdateDownload");
             downloadThread.start();
-            return START_STICKY;
+            return START_NOT_STICKY;
         } else if (ACTION_CANCEL_DOWNLOAD.equals(action)) {
             requestCancel();
             if (!sIsRunning.get()) {
@@ -235,13 +239,26 @@ public class UpdateDownloadService extends Service {
     }
 
     private void performDownload(String branch, String gapps) {
-        UpdaterActivity.UpdateInfo info = UpdaterActivity.downloadUpdateManifest(branch, gapps, 0);
-        if (info == null) {
-            finishWithError("Couldn't download manifest.");
-            return;
+        try {
+            prepareAndDownload(branch, gapps);
+        } catch (Exception e) {
+            Log.e(TAG, "Update failed", e);
+            if (cancelRequested || !shouldContinue) {
+                finishAsCanceled();
+            } else {
+                finishWithError("Update failed: " + e.getMessage());
+            }
         }
+    }
+
+    private void prepareAndDownload(String branch, String gapps) {
+        UpdaterActivity.UpdateInfo info = UpdaterActivity.downloadUpdateManifest(branch, gapps, 0);
         if (!shouldContinue) {
             finishAsCanceled();
+            return;
+        }
+        if (info == null) {
+            finishWithError("Couldn't download manifest.");
             return;
         }
 
@@ -292,17 +309,14 @@ public class UpdateDownloadService extends Service {
     }
 
     private String runOtaSwitchCommand() {
-/*        updateNotification(preparingText, -1, true, preparingText);
-        broadcastState(STATE_PREPARING, 0, true, preparingText, preparingText, null);*/
         SystemProperties.set("ctl.start", "phh-ota-switch");
 	sleepFor(1000);
-        while (shouldContinue && !"stopped".equals(SystemProperties.get("init.svc.phh-ota-switch", ""))) {
+        // Once the slot switch starts, wait for its result even if a late cancel arrives.
+        // Reporting cancellation here could hide an image that is already staged for reboot.
+        while (!"stopped".equals(SystemProperties.get("init.svc.phh-ota-switch", ""))) {
             sleepFor(100);
         }
 
-        if (!shouldContinue) {
-            return null;
-        }
         return SystemProperties.get("phh.ota.error", "");
     }
 
@@ -320,6 +334,7 @@ public class UpdateDownloadService extends Service {
         CountingInputStream countingInput = null;
         GZIPInputStream gzipInput = null;
         BufferedOutputStream out = null;
+        Exception downloadError = null;
 
         try {
             URL url = new URL(info.url);
@@ -371,12 +386,7 @@ public class UpdateDownloadService extends Service {
             }
         } catch (Exception e) {
             Log.e(TAG, "Download failed", e);
-            if (cancelRequested || !shouldContinue) {
-                finishAsCanceled();
-            } else {
-                finishWithError("Download failed: " + e.getMessage());
-            }
-            return;
+            downloadError = e;
         } finally {
             closeQuietly(gzipInput);
             closeQuietly(countingInput);
@@ -392,6 +402,11 @@ public class UpdateDownloadService extends Service {
             finishAsCanceled();
             return;
         }
+        if (downloadError != null) {
+            finishWithError("Download failed: " + downloadError.getMessage());
+            return;
+        }
+        showFinalizing();
         String signatureWarning = null;
         try {
             byte[] signatureBytes = downloadSignatureFile(info.url);
@@ -414,22 +429,33 @@ public class UpdateDownloadService extends Service {
                 return;
             }
         }
-        String verifyError = runOtaSwitchCommand();
-        if (!shouldContinue) {
+        if (!shouldContinue || cancelRequested) {
             finishAsCanceled();
             return;
         }
+        showFinalizing();
+        String verifyError = runOtaSwitchCommand();
         if (verifyError != null && !verifyError.isEmpty()) {
             finishWithError("Error verifying image: " + verifyError);
             return;
         }
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        prefs.edit()
-                .remove(UpdaterActivity.KEY_UPDATE_VERSION)
-                .putLong(UpdaterActivity.KEY_DOWNLOADED_BUILD, info.buildTimeStamp)
-                .apply();
+        synchronized (UpdaterActivity.STATE_LOCK) {
+            prefs.edit()
+                    .remove(UpdaterActivity.KEY_UPDATE_VERSION)
+                    .putInt(UpdaterActivity.KEY_LAST_BOOT_COUNT, UpdaterActivity.currentBootCount(this))
+                    .putLong(UpdaterActivity.KEY_DOWNLOADED_BUILD, info.buildTimeStamp)
+                    .apply();
+        }
 
         finishSuccessfully();
+    }
+
+    private void showFinalizing() {
+        String message = getString(R.string.update_finalizing_text);
+        notificationBuilder = buildNotification();
+        broadcastState(STATE_FINALIZING, 0, true, null, message, null);
+        updateNotification(message, 0, true, null);
     }
 
     private Signature createSignatureVerifier() throws GeneralSecurityException, IOException {
@@ -515,11 +541,6 @@ public class UpdateDownloadService extends Service {
             pendingSignatureDecision = null;
         }
         boolean proceed = waiter.decided && waiter.proceed && shouldContinue && !cancelRequested;
-        if (proceed) {
-            notificationBuilder = buildNotification();
-            broadcastState(STATE_PREPARING, 0, true, preparingText, preparingText, null);
-            updateNotification(preparingText, -1, true, preparingText);
-        }
         return proceed;
     }
 
@@ -558,7 +579,8 @@ public class UpdateDownloadService extends Service {
     }
 
     private void finishSuccessfully() {
-        complete(STATE_COMPLETED, 100, null, "Download complete!", null, false);
+        complete(STATE_COMPLETED, 100, null,
+                getString(R.string.update_installed_reboot_message), null, false);
     }
 
     private void finishWithError(String message) {
@@ -580,52 +602,48 @@ public class UpdateDownloadService extends Service {
         }
     }
 
-    private synchronized void complete(int state, int percent, String speedText,
+    private void complete(int state, int percent, String speedText,
             String message, String error, boolean removeNotification) {
-        if (!sIsRunning.getAndSet(false)) {
-            return;
-        }
-
-        shouldContinue = false;
-        cancelRequested = false;
-        downloadThread = null;
-
-        if (notificationBuilder != null) {
-            notificationBuilder.setOngoing(false);
-            notificationBuilder.setProgress(0, 0, false);
-            notificationBuilder.setContentText(message);
-            notificationBuilder.setSubText(speedText);
-            notificationBuilder.setAutoCancel(!removeNotification);
+        // Finish on the service's main thread so a retry cannot race stopSelf/onDestroy.
+        new android.os.Handler(getMainLooper()).post(() -> {
+            shouldContinue = false;
+            cancelRequested = false;
+            downloadThread = null;
             if (!removeNotification) {
+                // Use a fresh builder to discard signature-warning actions.
+                notificationBuilder = buildNotification()
+                        .setOngoing(false)
+                        .setContentText(message)
+                        .setAutoCancel(state != STATE_COMPLETED);
+                if (state == STATE_COMPLETED) {
+                    notificationBuilder.addAction(0, getString(R.string.reboot_now),
+                            createLaunchIntent());
+                }
                 notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build());
             }
-        }
+            stopForeground(removeNotification);
+            stopSelf();
+            synchronized (UpdaterActivity.STATE_LOCK) {
+                broadcastState(state, percent, false, speedText, message, error);
+                sIsRunning.set(false);
+            }
+        });
+    }
 
-        if (removeNotification) {
-            stopForeground(true);
-        } else {
-            stopForeground(false);
-        }
-
-        broadcastState(state, percent, false, speedText, message, error);
-        stopSelf();
+    private PendingIntent createLaunchIntent() {
+        Intent intent = new Intent(this, UpdaterActivity.class);
+        return PendingIntent.getActivity(this, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private NotificationCompat.Builder buildNotification() {
-        Intent launchIntent = new Intent(this, UpdaterActivity.class);
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            flags |= PendingIntent.FLAG_IMMUTABLE;
-        }
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, launchIntent, flags);
-
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_update)
                 .setContentTitle(getString(R.string.app_name))
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOnlyAlertOnce(true)
                 .setOngoing(true)
-                .setContentIntent(pendingIntent);
+                .setContentIntent(createLaunchIntent());
     }
 
     private void updateNotification(String message, int percent, boolean indeterminate, String speedText) {
@@ -648,18 +666,6 @@ public class UpdateDownloadService extends Service {
 
         Intent progressIntent = new Intent(ACTION_PROGRESS);
         progressIntent.setPackage(getPackageName());
-        progressIntent.putExtra(EXTRA_STATE, state);
-        progressIntent.putExtra(EXTRA_PERCENT, percent);
-        progressIntent.putExtra(EXTRA_INDETERMINATE, indeterminate);
-        if (speedText != null) {
-            progressIntent.putExtra(EXTRA_SPEED, speedText);
-        }
-        if (message != null) {
-            progressIntent.putExtra(EXTRA_MESSAGE, message);
-        }
-        if (error != null) {
-            progressIntent.putExtra(EXTRA_ERROR, error);
-        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             UserHandle currentUser = Process.myUserHandle();
             try {

@@ -10,6 +10,8 @@ import android.content.Intent;
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context ctx, Intent intent) {
+        UpdaterActivity.clearDownloadedBuildOnceAfterBoot(ctx,
+                android.preference.PreferenceManager.getDefaultSharedPreferences(ctx));
         UpdaterActivity.schedulePeriodicWorker(ctx);
     }
 }

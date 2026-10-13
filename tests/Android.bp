@@ -1,0 +1,22 @@
+android_robolectric_test {
+    name: "DumbdroidUpdaterTests",
+    srcs: ["src/**/*.java"],
+    java_resources: [":DumbdroidUpdaterTestResources"],
+    static_libs: ["androidx.test.core", "androidx.test.espresso.idling-resource"],
+    instrumentation_for: "DumbdroidUpdater",
+    robolectric_prebuilt_version: "4.8.2",
+}
+
+python_binary_host {
+    name: "DumbdroidUpdaterTestResourcesTool",
+    main: "prepare_resources.py",
+    srcs: ["prepare_resources.py"],
+}
+
+genrule {
+    name: "DumbdroidUpdaterTestResources",
+    tools: ["aapt2", "DumbdroidUpdaterTestResourcesTool"],
+    srcs: [":DumbdroidUpdater"],
+    out: ["updater-test-resources.apk"],
+    cmd: "$(location DumbdroidUpdaterTestResourcesTool) $(location aapt2) $(in) $(out)",
+}
