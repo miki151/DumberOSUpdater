@@ -10,10 +10,14 @@ import android.content.SharedPreferences;
 import android.os.SystemProperties;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.Button;
+import androidx.appcompat.view.menu.MenuBuilder;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.After;
@@ -103,6 +107,44 @@ public class UpdaterStateTest {
     private Button openActivity() {
         activity = Robolectric.buildActivity(UpdaterActivity.class).setup();
         return activity.get().findViewById(R.id.btn_check_updates);
+    }
+
+    private Menu preparationMenu() {
+        Menu menu = new MenuBuilder(activity.get());
+        activity.get().onCreateOptionsMenu(menu);
+        activity.get().onPrepareOptionsMenu(menu);
+        return menu;
+    }
+
+    @Test
+    public void adaptivePacingToggleDefaultsOnAndPersistsAcrossRecreation() {
+        openActivity();
+        MenuItem item = preparationMenu().findItem(R.id.menu_adaptive_pacing);
+        assertTrue(item.isCheckable());
+        assertTrue(item.isChecked());
+        assertTrue(activity.get().onOptionsItemSelected(item));
+        assertFalse(item.isChecked());
+        assertFalse(prefs.getBoolean(UpdaterActivity.KEY_PREF_ADAPTIVE_PACING, true));
+        activity.pause().stop().destroy();
+        activity = null;
+        openActivity();
+        item = preparationMenu().findItem(R.id.menu_adaptive_pacing);
+        assertFalse(item.isChecked());
+        assertTrue(activity.get().onOptionsItemSelected(item));
+        assertTrue(item.isChecked());
+        assertTrue(prefs.getBoolean(UpdaterActivity.KEY_PREF_ADAPTIVE_PACING, false));
+    }
+
+    @Test
+    public void adaptivePacingToggleCannotChangeAnActiveUpdate() {
+        openActivity();
+        running().set(true);
+        MenuItem item = preparationMenu().findItem(R.id.menu_adaptive_pacing);
+        assertFalse(item.isEnabled());
+        activity.get().onOptionsItemSelected(item);
+        assertTrue(prefs.getBoolean(UpdaterActivity.KEY_PREF_ADAPTIVE_PACING, true));
+        running().set(false);
+        assertTrue(preparationMenu().findItem(R.id.menu_adaptive_pacing).isEnabled());
     }
 
     @Test
@@ -231,6 +273,100 @@ public class UpdaterStateTest {
         Button button = openActivity();
         assertFalse(button.isEnabled());
         assertEquals(context.getString(R.string.update_finalizing_text), button.getText().toString());
+    }
+
+    @Test
+    public void preparationCancellationWaitsForNativeCleanup() throws Exception {
+        UpdateDownloadService service = Robolectric.buildService(UpdateDownloadService.class)
+                .create().get();
+        ReflectionHelpers.setField(service, "shouldContinue", true);
+        SystemProperties.set("ctl.start", "");
+        SystemProperties.set("init.svc.phh-ota-make", "stopped");
+        SystemProperties.set("phh.ota.cancel", "true"); // stale previous cancellation
+        SystemProperties.set("phh.ota.adaptive_pacing", "false"); // stale previous attempt
+        FutureTask<String> task = new FutureTask<>(() ->
+                ReflectionHelpers.callInstanceMethod(service, "runOtaMakeCommand"));
+        Thread worker = new Thread(task);
+        worker.start();
+        try {
+            awaitProperty("ctl.start", "phh-ota-make");
+            assertEquals("false", SystemProperties.get("phh.ota.cancel"));
+            assertEquals("true", SystemProperties.get("phh.ota.adaptive_pacing"));
+            Thread.sleep(250);
+            assertFalse("A stale stopped state is not completion", task.isDone());
+            SystemProperties.set("init.svc.phh-ota-make", "running");
+            SystemProperties.set("phh.ota.error", "");
+            ReflectionHelpers.callInstanceMethod(service, "requestCancel");
+            awaitProperty("phh.ota.cancel", "true");
+            assertFalse("Cancellation must wait for native cleanup", task.isDone());
+            SystemProperties.set("phh.ota.error", "Operation canceled");
+            SystemProperties.set("init.svc.phh-ota-make", "stopped");
+            assertNull(task.get(5, TimeUnit.SECONDS));
+        } finally {
+            SystemProperties.set("phh.ota.error", "");
+            SystemProperties.set("init.svc.phh-ota-make", "stopped");
+            worker.join(5000);
+            assertFalse(worker.isAlive());
+        }
+    }
+
+    @Test
+    public void preparationReportsNativePressureTimeout() throws Exception {
+        UpdateDownloadService service = Robolectric.buildService(UpdateDownloadService.class)
+                .create().get();
+        ReflectionHelpers.setField(service, "shouldContinue", true);
+        SystemProperties.set("ctl.start", "");
+        SystemProperties.set("init.svc.phh-ota-make", "");
+        FutureTask<String> task = new FutureTask<>(() ->
+                ReflectionHelpers.callInstanceMethod(service, "runOtaMakeCommand"));
+        Thread worker = new Thread(task);
+        worker.start();
+        try {
+            awaitProperty("ctl.start", "phh-ota-make");
+            SystemProperties.set("init.svc.phh-ota-make", "running");
+            SystemProperties.set("phh.ota.error", "Connection timed out");
+            SystemProperties.set("init.svc.phh-ota-make", "stopped");
+            assertEquals("Connection timed out", task.get(5, TimeUnit.SECONDS));
+        } finally {
+            SystemProperties.set("phh.ota.error", "");
+            SystemProperties.set("init.svc.phh-ota-make", "stopped");
+            worker.join(5000);
+            assertFalse(worker.isAlive());
+        }
+    }
+
+    @Test
+    public void preparationPassesDisabledPacingToNativeBeforeStarting() throws Exception {
+        prefs.edit().putBoolean(UpdaterActivity.KEY_PREF_ADAPTIVE_PACING, false).commit();
+        UpdateDownloadService service = Robolectric.buildService(UpdateDownloadService.class)
+                .create().get();
+        ReflectionHelpers.setField(service, "shouldContinue", true);
+        SystemProperties.set("ctl.start", "");
+        SystemProperties.set("init.svc.phh-ota-make", "stopped");
+        SystemProperties.set("phh.ota.adaptive_pacing", "true");
+        FutureTask<String> task = new FutureTask<>(() ->
+                ReflectionHelpers.callInstanceMethod(service, "runOtaMakeCommand"));
+        Thread worker = new Thread(task);
+        worker.start();
+        try {
+            awaitProperty("ctl.start", "phh-ota-make");
+            assertEquals("false", SystemProperties.get("phh.ota.adaptive_pacing"));
+            SystemProperties.set("phh.ota.error", "");
+            assertEquals("", task.get(5, TimeUnit.SECONDS));
+        } finally {
+            SystemProperties.set("phh.ota.error", "");
+            SystemProperties.set("init.svc.phh-ota-make", "stopped");
+            worker.join(5000);
+            assertFalse(worker.isAlive());
+        }
+    }
+
+    private static void awaitProperty(String key, String expected) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!expected.equals(SystemProperties.get(key)) && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        assertEquals(expected, SystemProperties.get(key));
     }
 
     private static UpdaterActivity.UpdateInfo manifest() {

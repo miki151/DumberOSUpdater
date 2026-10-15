@@ -26,5 +26,8 @@
                 android:title="@string/gapps_no"/>
         </menu>
     </item>
+    <item
+        android:id="@+id/menu_adaptive_pacing"
+        android:title="@string/menu_adaptive_pacing"
+        android:checkable="true"/>
 </menu>
-

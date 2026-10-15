@@ -286,26 +286,45 @@ public class UpdateDownloadService extends Service {
     private String runOtaMakeCommand() {
         updateNotification(preparingText, -1, true, preparingText);
         broadcastState(STATE_PREPARING, 0, true, preparingText, preparingText, null);
+        final String pending = "updater_waiting_for_start";
+        // Snapshot the preference before starting native preparation. Disabling
+        // it selects libfiemap's original allocation/zeroing path for this attempt.
+        boolean adaptivePacing = PreferenceManager.getDefaultSharedPreferences(this)
+                .getBoolean(UpdaterActivity.KEY_PREF_ADAPTIVE_PACING, true);
+        SystemProperties.set("phh.ota.adaptive_pacing", Boolean.toString(adaptivePacing));
+        SystemProperties.set("phh.ota.cancel", "false");
+        SystemProperties.set("phh.ota.progress", "0");
+        SystemProperties.set("phh.ota.error", pending);
         SystemProperties.set("ctl.start", "phh-ota-make");
-	sleepFor(1000);
-        while (shouldContinue && !"stopped".equals(SystemProperties.get("init.svc.phh-ota-make", ""))) {
+        int lastPercent = -1;
+        boolean cancelSent = false;
+        while (true) {
+            // Native preparation cooperatively cancels even during a pressure
+            // pause. Wait for its cleanup before allowing another attempt.
+            if (!shouldContinue && !cancelSent) {
+                SystemProperties.set("phh.ota.cancel", "true");
+                cancelSent = true;
+            }
+            String error = SystemProperties.get("phh.ota.error", "");
+            String state = SystemProperties.get("init.svc.phh-ota-make", "");
+            if (!pending.equals(error) && "stopped".equals(state)) {
+                return shouldContinue ? error : null;
+            }
             String percent = SystemProperties.get("phh.ota.progress", "");
-            if (!percent.isEmpty()) {
+            if (shouldContinue && !percent.isEmpty()) {
                 try {
                     int value = Integer.parseInt(percent);
-                    broadcastState(STATE_PREPARING, value, false, preparingText, preparingText, null);
-                    updateNotification(preparingText, value, false, preparingText);
+                    if (value != lastPercent) {
+                        broadcastState(STATE_PREPARING, value, false, preparingText, preparingText, null);
+                        updateNotification(preparingText, value, false, preparingText);
+                        lastPercent = value;
+                    }
                 } catch (NumberFormatException e) {
                     Log.w(TAG, "Failed to parse preparation percent: " + percent, e);
                 }
             }
-            sleepFor(100);
+            sleepFor(200);
         }
-
-        if (!shouldContinue) {
-            return null;
-        }
-        return SystemProperties.get("phh.ota.error", "");
     }
 
     private String runOtaSwitchCommand() {

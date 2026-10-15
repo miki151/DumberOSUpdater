@@ -12,6 +12,7 @@
     <string name="patchnotes_placeholder">Patchnotes will appear here.</string>
     <string name="menu_branch">Branch</string>
     <string name="menu_gapps">Google apps</string>
+    <string name="menu_adaptive_pacing">Stability fix</string>
     <string name="stable">stable</string>
     <string name="testing">testing</string>
     <string name="unstable">unstable</string>

@@ -47,6 +47,7 @@ public class UpdaterActivity extends AppCompatActivity {
     public static final String KEY_LAST_BOOT_COUNT = "pref_last_boot_count";
     public static final String KEY_UPDATE_PATCHNOTES = "pref_update_patchnotes";
     public static final String KEY_PREF_BRANCH = "pref_update_branch";
+    public static final String KEY_PREF_ADAPTIVE_PACING = "pref_adaptive_pacing";
     public static final String KEY_PREF_GAPPS = "pref_gapps_variant";    
     static final Object STATE_LOCK = new Object();
     static long checkGeneration;
@@ -462,6 +463,14 @@ public class UpdaterActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
+            case R.id.menu_adaptive_pacing:
+                synchronized (STATE_LOCK) {
+                    if (UpdateDownloadService.isRunning()) return true;
+                    boolean enabled = !prefs.getBoolean(KEY_PREF_ADAPTIVE_PACING, true);
+                    prefs.edit().putBoolean(KEY_PREF_ADAPTIVE_PACING, enabled).apply();
+                    item.setChecked(enabled);
+                }
+                return true;
             case R.id.menu_branch_stable:
                 setBranch("stable");
                 return true;
@@ -498,6 +507,9 @@ public class UpdaterActivity extends AppCompatActivity {
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
+        menu.findItem(R.id.menu_adaptive_pacing)
+                .setChecked(prefs.getBoolean(KEY_PREF_ADAPTIVE_PACING, true))
+                .setEnabled(!UpdateDownloadService.isRunning());
         boolean enabled = screenState == ScreenState.CHECK || screenState == ScreenState.AVAILABLE;
         menu.findItem(R.id.menu_branch).setEnabled(enabled);
         menu.findItem(R.id.menu_gapps).setEnabled(enabled);
