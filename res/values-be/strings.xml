@@ -18,7 +18,7 @@
     <string name="reboot_now">Перазагрузіць зараз</string>
     <string name="updates_channel_name">Новыя абнаўленні</string>
     <string name="updates_channel_description">Новыя абнаўленні</string>
-    <string name="updates_notification_title">Новыя абнаўленні</string>
+    <string name="updates_notification_title">Даступна новае абнаўленне DumberOS</string>
     <string name="updates_notification_text">Спампаваць абнаўленне</string>
     <string name="update_preparing_text">Падрыхтоўка абнаўлення</string>
     <string name="update_downloading_text">Спампоўванне</string><string name="update_installed_reboot_message">Абнаўленне ўстаноўлена. Перазагрузіць зараз</string></resources>

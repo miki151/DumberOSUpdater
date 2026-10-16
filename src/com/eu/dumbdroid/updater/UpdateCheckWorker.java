@@ -88,7 +88,7 @@ public class UpdateCheckWorker extends JobService {
         );
 
         NotificationCompat.Builder nb = new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_update)
+            .setSmallIcon(R.drawable.ic_update_notification)
             .setContentTitle(getString(R.string.updates_notification_title))
             .setContentText(getString(R.string.updates_notification_text))
             .setContentIntent(pi)
@@ -97,4 +97,3 @@ public class UpdateCheckWorker extends JobService {
         NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, nb.build());
     }
 }
-

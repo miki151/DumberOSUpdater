@@ -18,7 +18,7 @@
     <string name="reboot_now">გადატვირთვა</string>
     <string name="updates_channel_name">ბოლო განახლებები</string>
     <string name="updates_channel_description">ბოლო განახლებები</string>
-    <string name="updates_notification_title">ბოლო განახლებები</string>
+    <string name="updates_notification_title">ხელმისაწვდომია DumberOS-ის ახალი განახლება</string>
     <string name="updates_notification_text">განახლების ჩამოტვირთვა</string>
     <string name="update_preparing_text">წინასწარი მომზადება განახლებისთვის</string>
 <string name="update_downloading_text">ჩამოიტვირთება</string><string name="update_installed_reboot_message">განახლება დაყენებულია. გადატვირთვა</string></resources>

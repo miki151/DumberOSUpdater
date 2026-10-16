@@ -18,7 +18,7 @@
     <string name="reboot_now">إعادة التشغيل</string>
     <string name="updates_channel_name">تحديثات جديدة</string>
     <string name="updates_channel_description">تحديثات جديدة</string>
-    <string name="updates_notification_title">تحديثات جديدة</string>
+    <string name="updates_notification_title">يتوفر تحديث جديد لنظام DumberOS</string>
     <string name="updates_notification_text">تنزيل التحديث</string>
     <string name="update_preparing_text">التجهيز للتحديث الأولي</string>
     <string name="update_downloading_text">جارٍ التنزيل</string><string name="update_installed_reboot_message">تم تثبيت التحديث. أعد التشغيل</string></resources>

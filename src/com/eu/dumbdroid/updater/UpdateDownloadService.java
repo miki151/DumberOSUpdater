@@ -678,7 +678,7 @@ public class UpdateDownloadService extends Service {
 
     private NotificationCompat.Builder buildNotification() {
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_update)
+                .setSmallIcon(R.drawable.ic_update_notification)
                 .setContentTitle(getString(R.string.app_name))
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOnlyAlertOnce(true)

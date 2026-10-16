@@ -18,7 +18,7 @@
     <string name="reboot_now">Dèan ath-thòiseachadh</string>
     <string name="updates_channel_name">Ùrachaidhean</string>
     <string name="updates_channel_description">Ùrachaidhean</string>
-    <string name="updates_notification_title">Ùrachaidhean</string>
+    <string name="updates_notification_title">Tha ùrachadh ùr DumberOS ri fhaighinn</string>
     <string name="updates_notification_text">Luchdaich sìos an t-ùrachadh</string>
     <string name="update_preparing_text">Ullachadh an ùrachaidh</string>
 <string name="update_downloading_text">’Ga luchdadh a-nuas</string><string name="update_installed_reboot_message">Chaidh an t-ùrachadh a stàladh. Dèan ath-thòiseachadh</string></resources>

@@ -18,7 +18,7 @@
     <string name="reboot_now">Επανεκκίνηση</string>
     <string name="updates_channel_name">Νέες ενημερώσεις</string>
     <string name="updates_channel_description">Νέες ενημερώσεις</string>
-    <string name="updates_notification_title">Νέες ενημερώσεις</string>
+    <string name="updates_notification_title">Διαθέσιμη νέα ενημέρωση του DumberOS</string>
     <string name="updates_notification_text">Λήψη ενημέρωσης</string>
     <string name="update_preparing_text">Προκαταρκτική προετοιμασία ενημέρωσης</string>
 <string name="update_downloading_text">Λήψη</string><string name="update_installed_reboot_message">Η ενημέρωση εγκαταστάθηκε. Επανεκκίνηση</string></resources>

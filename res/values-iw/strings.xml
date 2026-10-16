@@ -18,7 +18,7 @@
     <string name="reboot_now">הפעלה מחדש</string>
     <string name="updates_channel_name">עדכונים חדשים</string>
     <string name="updates_channel_description">עדכונים חדשים</string>
-    <string name="updates_notification_title">עדכונים חדשים</string>
+    <string name="updates_notification_title">עדכון חדש של DumberOS זמין</string>
     <string name="updates_notification_text">הורד עדכון</string>
     <string name="update_preparing_text">מתכונן להתקנת העדכון</string>
 <string name="update_downloading_text">מוריד</string><string name="update_installed_reboot_message">העדכון הותקן. הפעלה מחדש</string></resources>

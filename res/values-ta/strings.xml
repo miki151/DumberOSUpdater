@@ -18,7 +18,7 @@
     <string name="reboot_now">மறு இயக்கம்</string>
     <string name="updates_channel_name">புதிய புதுப்பிப்புகள்</string>
     <string name="updates_channel_description">புதிய புதுப்பிப்புகள்</string>
-    <string name="updates_notification_title">புதிய புதுப்பிப்புகள்</string>
+    <string name="updates_notification_title">புதிய DumberOS புதுப்பிப்பு கிடைக்கிறது</string>
     <string name="updates_notification_text">புதுப்பிப்பை பதிவிறக்கவும்</string>
     <string name="update_preparing_text">புதுப்பிப்பைத் தயாராக்குகிறோம்</string>
     <string name="update_downloading_text">பதிவிறக்குகிறது</string><string name="update_installed_reboot_message">புதுப்பிப்பு நிறுவப்பட்டது. மறுதொடக்கம்</string></resources>

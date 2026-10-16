@@ -18,7 +18,7 @@
     <string name="reboot_now">Ponovo pokreni sada</string>
     <string name="updates_channel_name">DumberOS provjera ažuriranja</string>
     <string name="updates_channel_description">DumberOS provjera ažuriranja</string>
-    <string name="updates_notification_title">Dostupno novo ažuriranje</string>
+    <string name="updates_notification_title">Dostupno je novo ažuriranje za DumberOS</string>
     <string name="updates_notification_text">Preuzmi ažuriranje</string>
     <string name="update_preparing_text">Priprema za ažuriranje</string>
     <string name="update_downloading_text">Preuzimanje</string><string name="update_installed_reboot_message">Ažuriranje instalirano. Ponovo pokrenite</string></resources>
