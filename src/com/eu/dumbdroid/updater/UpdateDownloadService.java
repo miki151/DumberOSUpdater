@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.os.Process;
 import android.os.SystemProperties;
 import android.os.UserHandle;
@@ -239,8 +240,15 @@ public class UpdateDownloadService extends Service {
     }
 
     private void performDownload(String branch, String gapps) {
+        // A foreground service alone does not prevent CPU suspend. Each worker
+        // owns its lock through native cancellation cleanup and stream closure.
+        PowerManager.WakeLock wakeLock = getSystemService(PowerManager.class)
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG + ":Update");
         try {
-            prepareAndDownload(branch, gapps);
+            // No fixed expiry: preparation or a slow download can take a long
+            // time. Every exit releases the lock in finally.
+            wakeLock.acquire();
+            prepareAndDownload(branch, gapps, wakeLock);
         } catch (Exception e) {
             Log.e(TAG, "Update failed", e);
             if (cancelRequested || !shouldContinue) {
@@ -248,10 +256,12 @@ public class UpdateDownloadService extends Service {
             } else {
                 finishWithError("Update failed: " + e.getMessage());
             }
+        } finally {
+            if (wakeLock.isHeld()) wakeLock.release();
         }
     }
 
-    private void prepareAndDownload(String branch, String gapps) {
+    private void prepareAndDownload(String branch, String gapps, PowerManager.WakeLock wakeLock) {
         UpdaterActivity.UpdateInfo info = UpdaterActivity.downloadUpdateManifest(branch, gapps, 0);
         if (!shouldContinue) {
             finishAsCanceled();
@@ -272,7 +282,7 @@ public class UpdateDownloadService extends Service {
             return;
         }
 
-        downloadPackage(info);
+        downloadPackage(info, wakeLock);
     }
 
     private void sleepFor(int milli) {
@@ -340,7 +350,7 @@ public class UpdateDownloadService extends Service {
     }
 
 
-    private void downloadPackage(UpdaterActivity.UpdateInfo info) {
+    private void downloadPackage(UpdaterActivity.UpdateInfo info, PowerManager.WakeLock wakeLock) {
         final Signature signatureVerifier;
         try {
             signatureVerifier = createSignatureVerifier();
@@ -443,7 +453,7 @@ public class UpdateDownloadService extends Service {
         }
 
         if (signatureWarning != null) {
-            if (!promptUserForUnverifiedInstall(signatureWarning)) {
+            if (!promptUserForUnverifiedInstall(signatureWarning, wakeLock)) {
                 finishAsCanceled();
                 return;
             }
@@ -539,7 +549,8 @@ public class UpdateDownloadService extends Service {
         }
     }
 
-    private boolean promptUserForUnverifiedInstall(String warningMessage) {
+    private boolean promptUserForUnverifiedInstall(String warningMessage,
+            PowerManager.WakeLock wakeLock) {
         String message = warningMessage != null ? warningMessage
                 : getString(R.string.signature_warning_message);
         SignatureDecisionWaiter waiter = new SignatureDecisionWaiter();
@@ -548,16 +559,26 @@ public class UpdateDownloadService extends Service {
         }
         showSignatureWarningNotification(message);
         broadcastState(STATE_SIGNATURE_WARNING, 100, false, null, message, warningMessage);
-        synchronized (decisionLock) {
-            while (!waiter.decided && shouldContinue && !cancelRequested) {
-                try {
-                    decisionLock.wait();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return false;
+        // Waiting for a person is not active update work. Do not keep the phone
+        // awake indefinitely if the signature warning is left unanswered.
+        wakeLock.release();
+        try {
+            synchronized (decisionLock) {
+                while (!waiter.decided && shouldContinue && !cancelRequested) {
+                    try {
+                        decisionLock.wait();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
                 }
             }
-            pendingSignatureDecision = null;
+        } finally {
+            synchronized (decisionLock) {
+                pendingSignatureDecision = null;
+            }
+            // Also protect the short cancellation/error cleanup after a refusal.
+            wakeLock.acquire();
         }
         boolean proceed = waiter.decided && waiter.proceed && shouldContinue && !cancelRequested;
         return proceed;

@@ -7,6 +7,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.PowerManager;
 import android.os.SystemProperties;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
@@ -32,7 +33,9 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.android.controller.ActivityController;
+import org.robolectric.shadows.ShadowPowerManager;
 import org.robolectric.util.ReflectionHelpers;
+import org.robolectric.util.ReflectionHelpers.ClassParameter;
 
 @RunWith(UpdaterStateTest.TestRunner.class)
 @Config(sdk = 32, shadows = UpdaterStateTest.ManifestShadow.class)
@@ -284,14 +287,19 @@ public class UpdaterStateTest {
         SystemProperties.set("init.svc.phh-ota-make", "stopped");
         SystemProperties.set("phh.ota.cancel", "true"); // stale previous cancellation
         SystemProperties.set("phh.ota.adaptive_pacing", "false"); // stale previous attempt
-        FutureTask<String> task = new FutureTask<>(() ->
-                ReflectionHelpers.callInstanceMethod(service, "runOtaMakeCommand"));
+        ManifestShadow.result = manifest();
+        FutureTask<Void> task = new FutureTask<>(() -> {
+            runDownload(service);
+            return null;
+        });
         Thread worker = new Thread(task);
         worker.start();
         try {
             awaitProperty("ctl.start", "phh-ota-make");
             assertEquals("false", SystemProperties.get("phh.ota.cancel"));
             assertEquals("true", SystemProperties.get("phh.ota.adaptive_pacing"));
+            PowerManager.WakeLock wakeLock = ShadowPowerManager.getLatestWakeLock();
+            assertTrue(wakeLock.isHeld());
             Thread.sleep(250);
             assertFalse("A stale stopped state is not completion", task.isDone());
             SystemProperties.set("init.svc.phh-ota-make", "running");
@@ -299,13 +307,90 @@ public class UpdaterStateTest {
             ReflectionHelpers.callInstanceMethod(service, "requestCancel");
             awaitProperty("phh.ota.cancel", "true");
             assertFalse("Cancellation must wait for native cleanup", task.isDone());
+            assertTrue("Native cleanup must stay awake", wakeLock.isHeld());
             SystemProperties.set("phh.ota.error", "Operation canceled");
             SystemProperties.set("init.svc.phh-ota-make", "stopped");
             assertNull(task.get(5, TimeUnit.SECONDS));
+            assertFalse(wakeLock.isHeld());
         } finally {
             SystemProperties.set("phh.ota.error", "");
             SystemProperties.set("init.svc.phh-ota-make", "stopped");
             worker.join(5000);
+            assertFalse(worker.isAlive());
+        }
+    }
+
+    private static void runDownload(UpdateDownloadService service) {
+        ReflectionHelpers.callInstanceMethod(service, "performDownload",
+                ClassParameter.from(String.class, "stable"),
+                ClassParameter.from(String.class, "vanilla"));
+    }
+
+    @Test
+    public void manifestFailureReleasesWakeLock() {
+        UpdateDownloadService service = Robolectric.buildService(UpdateDownloadService.class)
+                .create().get();
+        ReflectionHelpers.setField(service, "shouldContinue", true);
+        ManifestShadow.onRequest = () -> assertTrue(ShadowPowerManager.getLatestWakeLock().isHeld());
+        runDownload(service);
+        assertFalse(ShadowPowerManager.getLatestWakeLock().isHeld());
+    }
+
+    @Test
+    public void unexpectedDownloadExceptionReleasesWakeLock() {
+        UpdateDownloadService service = Robolectric.buildService(UpdateDownloadService.class)
+                .create().get();
+        ReflectionHelpers.setField(service, "shouldContinue", true);
+        ManifestShadow.onRequest = () -> {
+            assertTrue(ShadowPowerManager.getLatestWakeLock().isHeld());
+            throw new IllegalStateException("test failure");
+        };
+        runDownload(service);
+        assertFalse(ShadowPowerManager.getLatestWakeLock().isHeld());
+    }
+
+    @Test
+    public void signatureDecisionReleasesWakeLockAndReacquiresForFinalization() throws Exception {
+        checkSignatureWaitWakeLock(true);
+    }
+
+    @Test
+    public void signatureCancellationReacquiresWakeLockForCleanup() throws Exception {
+        checkSignatureWaitWakeLock(false);
+    }
+
+    private void checkSignatureWaitWakeLock(boolean proceed) throws Exception {
+        UpdateDownloadService service = Robolectric.buildService(UpdateDownloadService.class)
+                .create().get();
+        ReflectionHelpers.setField(service, "shouldContinue", true);
+        PowerManager.WakeLock wakeLock = context.getSystemService(PowerManager.class)
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "test:update");
+        wakeLock.acquire();
+        FutureTask<Boolean> task = new FutureTask<>(() -> ReflectionHelpers.callInstanceMethod(
+                service, "promptUserForUnverifiedInstall",
+                ClassParameter.from(String.class, "Test signature warning"),
+                ClassParameter.from(PowerManager.WakeLock.class, wakeLock)));
+        Thread worker = new Thread(task);
+        worker.start();
+        try {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (wakeLock.isHeld() && !task.isDone() && System.nanoTime() < deadline) {
+                Thread.sleep(10);
+            }
+            assertFalse("Waiting for user input must allow sleep", wakeLock.isHeld());
+            assertFalse(task.isDone());
+            if (proceed) {
+                ReflectionHelpers.callInstanceMethod(service, "resolveSignatureDecision",
+                        ClassParameter.from(boolean.class, true));
+            } else {
+                ReflectionHelpers.callInstanceMethod(service, "requestCancel");
+            }
+            assertEquals(proceed, task.get(5, TimeUnit.SECONDS));
+            assertTrue("Finalization or cancellation cleanup must stay awake", wakeLock.isHeld());
+        } finally {
+            ReflectionHelpers.callInstanceMethod(service, "requestCancel");
+            worker.join(5000);
+            if (wakeLock.isHeld()) wakeLock.release();
             assertFalse(worker.isAlive());
         }
     }
