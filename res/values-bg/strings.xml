@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Dumbdroid Updater</string>
+    <string name="app_name">DumberOS Updater</string>
     <string name="updater_tile_title">Актуализации</string>
     <string name="updater_tile_summary">Провери за нови сборки</string>
     <string name="check_updates">Провери за актуализации</string>

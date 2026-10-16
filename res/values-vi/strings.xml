@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Dumbdroid Updater</string>
+    <string name="app_name">DumberOS Updater</string>
     <string name="updater_tile_title">Cập nhật</string>
     <string name="updater_tile_summary">Kiểm tra bản dựng mới</string>
     <string name="check_updates">Kiểm tra cập nhật</string>

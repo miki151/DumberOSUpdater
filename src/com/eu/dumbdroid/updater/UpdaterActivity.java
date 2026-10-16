@@ -483,11 +483,11 @@ public class UpdaterActivity extends AppCompatActivity {
                         () -> setBranch("unstable"));
                 return true;
             case R.id.menu_gapps_yes:
-                showConfirmationDialog("Are you sure you want to switch to the variant of Dumbdroid that includes Google apps?",
+                showConfirmationDialog("Are you sure you want to switch to the variant of DumberOS that includes Google apps?",
                         () -> setGapps("gapps") );
                 return true;
             case R.id.menu_gapps_no:
-                showConfirmationDialog("Are you sure you want to switch to the variant of Dumbdroid that's free of Google apps?",
+                showConfirmationDialog("Are you sure you want to switch to the variant of DumberOS that's free of Google apps?",
                         () -> setGapps("vanilla") );
                 return true;
             case android.R.id.home:

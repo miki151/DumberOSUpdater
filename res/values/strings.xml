@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Dumbdroid Updater</string>
+    <string name="app_name">DumberOS Updater</string>
     <string name="updater_tile_title">Updates</string>
     <string name="updater_tile_summary">Check for new builds</string>
     <string name="checking_updates">Checking for updates…</string>
@@ -18,7 +18,7 @@
     <string name="unstable">unstable</string>
     <string name="gapps_yes">Yes</string>
     <string name="gapps_no">No</string>
-    <string name="updates_channel_name">Dumbdroid Update Checks</string>
+    <string name="updates_channel_name">DumberOS Update Checks</string>
     <string name="updates_channel_description">Notifies when a new ROM build is available</string>
     <string name="updates_notification_title">New update available</string>
     <string name="updates_notification_text">Tap to view and install</string>
